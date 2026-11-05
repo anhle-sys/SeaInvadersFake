@@ -1,46 +1,44 @@
-using DG.Tweening;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody))]
 public class BoatMovementController : MonoBehaviour
 {
-    [Header("Movement")]
-    [SerializeField] private float moveSpeed = 5f;
-    [Tooltip("Tốc độ quay (độ/giây) khi Steer thường")]
-    [SerializeField] private float rotateSpeed = 120f;
+    // Các thông số hiếm khi cần chỉnh
+    private const float FeedForwardSmoothing = 0.15f; // giây
+    private const float MinTurnAuthority = 0.3f;      // khả năng bẻ lái khi gần đứng yên (0..1)
+    private const float SharpTurnStartAngle = 20f;    // từ góc lệch này bắt đầu giảm tốc khi cua
+    private const float SharpTurnFullAngle = 120f;    // góc lệch giảm tốc nhiều nhất
+    private const float MinArrivalFactor = 0.15f;
 
-    [Header("Mass")]
-    [Tooltip("Tàu nặng hơn mass chuẩn: quay chậm hơn, vòng cua rộng hơn")]
-    [SerializeField] private bool massAffectsRotation = true;
+    [Tooltip("Thông số cảm giác lái. Tạo mới bằng Create > Boats > Handling Profile")]
+    [SerializeField] private BoatHandlingProfile profile;
 
-    [Header("Visual (DOTween)")]
-    [Tooltip("Model con của tàu. KHÔNG phải root có Rigidbody")]
-    [SerializeField] private Transform visual;
-    [SerializeField] private float bobHeight = 0.08f;
-    [SerializeField] private float bobDuration = 1.2f;
-    [Tooltip("Âm = ngóc mũi lên khi chạy")]
-    [SerializeField] private float movingPitch = -4f;
-    [SerializeField] private float pitchSmoothTime = 0.35f;
+    private float moveSpeed = 5f;
+    private float rotateSpeed = 120f;
 
-    // --- Movement ---
     private Rigidbody rb;
+    private BoatSteeringSensors sensors;
     private Vector3 desiredDirection;
     private bool hasInput;
     private float steerRadius;        // > 0: cua theo cung tròn bán kính này; 0: dùng rotateSpeed
     private float speedMultiplier = 1f;
-    private float referenceMass = 1f;
-    private float radiusScale = 1f;   // cache: tàu nặng -> vòng cua rộng
-    private float rotScale = 1f;      // cache: tàu nặng -> quay chậm
-
-    // --- Visual ---
-    private Tween bobTween;
-    private Tween pitchTween;
-    private Vector3 baseLocalPosition;
-    private Quaternion baseLocalRotation;
-    private bool visualMoving;
-
-    public bool IsMoving => hasInput;
+    private float arrivalFactor = 1f; // 0..1, giảm khi gần đích
+    private float currentSpeed;
+    private float currentYawRate;     // độ/giây
+    private float lastAcceleration;
     private bool wasBattleStarted;
+    private float prevDesiredHeading;
+    private bool hasPrevHeading;
+    private float headingRate;    
+    private float referenceMass = 1f;
+    private float radiusScale = 1f;
+    private float rotScale = 1f;
+
+    public bool IsMoving => hasInput || currentSpeed > 0.1f;
+    public float CurrentSpeed => currentSpeed;
+    public float Acceleration => lastAcceleration;
+    public float SpeedRatio => Mathf.Clamp01(currentSpeed / Mathf.Max(moveSpeed * speedMultiplier, 0.01f));
+    public float TurnRatio => Mathf.Clamp(currentYawRate / Mathf.Max(rotateSpeed * rotScale, 1f), -1f, 1f);
 
     private void Awake()
     {
@@ -49,21 +47,17 @@ public class BoatMovementController : MonoBehaviour
         rb.angularDamping = 0f;
         rb.isKinematic = true;
 
-        referenceMass = rb.mass;
-        RefreshMassScales();
-
-        if (visual == null)
+        if (profile == null)
         {
-            Debug.LogWarning($"{name}: chưa gán Visual, hiệu ứng DOTween sẽ bị tắt.", this);
-            return;
+            Debug.LogWarning($"{name}: chưa gán BoatHandlingProfile, dùng thông số mặc định.", this);
+            profile = ScriptableObject.CreateInstance<BoatHandlingProfile>();
         }
 
-        baseLocalPosition = visual.localPosition;
-        baseLocalRotation = visual.localRotation;
+        sensors = new BoatSteeringSensors(rb);
+        referenceMass = rb.mass;
+        RefreshMassScales();
     }
 
-    private void OnEnable() => StartBobbing();
-    private void OnDisable() => KillVisualTweens();
     public void ApplyLevel(BoatData data, int level)
     {
         BoatLevelStats s = data.GetLevel(level);
@@ -75,10 +69,12 @@ public class BoatMovementController : MonoBehaviour
 
     public void SetSpeedMultiplier(float multiplier)
     {
+        // Không cần làm mượt ở đây: gia tốc/phanh đã đưa tốc độ về dần
         speedMultiplier = Mathf.Clamp(multiplier, 0.05f, 1f);
     }
 
     public void Steer(Vector3 direction) => Steer(direction, 0f);
+
     public void Steer(Vector3 direction, float turnRadius)
     {
         direction.y = 0f;
@@ -91,6 +87,7 @@ public class BoatMovementController : MonoBehaviour
 
         desiredDirection = direction.normalized;
         steerRadius = turnRadius;
+        arrivalFactor = 1f;
         hasInput = true;
     }
 
@@ -98,14 +95,19 @@ public class BoatMovementController : MonoBehaviour
     {
         Vector3 to = point - transform.position;
         to.y = 0f;
+        float distance = to.magnitude;
 
-        if (to.sqrMagnitude <= stoppingDistance * stoppingDistance)
+        if (distance <= stoppingDistance)
         {
             Stop();
             return true;
         }
 
         Steer(to);
+        // Giảm tốc dần trong slowingDistance cuối, giữ tối thiểu để vẫn tới được đích
+        arrivalFactor = profile.slowingDistance > 0.01f
+            ? Mathf.Clamp((distance - stoppingDistance) / profile.slowingDistance, MinArrivalFactor, 1f)
+            : 1f;
         return false;
     }
 
@@ -117,6 +119,12 @@ public class BoatMovementController : MonoBehaviour
         desiredDirection = Vector3.zero;
         steerRadius = 0f;
         speedMultiplier = 1f;
+        arrivalFactor = 1f;
+        currentSpeed = 0f;
+        currentYawRate = 0f;
+        lastAcceleration = 0f;
+        hasPrevHeading = false;
+        headingRate = 0f;
 
         if (rb == null)
             rb = GetComponent<Rigidbody>();
@@ -125,11 +133,11 @@ public class BoatMovementController : MonoBehaviour
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
         }
-        rb.linearVelocity = Vector3.zero;
-        rb.angularVelocity = Vector3.zero;
 
-        ResetVisual();
+        if (TryGetComponent(out BoatVisualFx fx))
+            fx.ResetVisual();
     }
+
     private void FixedUpdate()
     {
         bool started = GameController.Instance.IsBattleStarted;
@@ -138,97 +146,135 @@ public class BoatMovementController : MonoBehaviour
         {
             wasBattleStarted = started;
             rb.isKinematic = !started;   // chưa đánh thì kinematic, đánh thì vật lý
+            currentSpeed = 0f;
+            currentYawRate = 0f;
         }
 
-        if (!started) return;
+        if (!started)
+            return;
 
-        float yVel = rb.linearVelocity.y;
-        SetVisualMoving(hasInput);
+        float dt = Time.fixedDeltaTime;
+        BoatHandlingProfile p = profile;
+        Vector3 forward = rb.rotation * Vector3.forward;
+        Vector3 right = rb.rotation * Vector3.right;
+        Vector3 velocity = rb.linearVelocity;
 
+        // Tốc độ thực tế dọc thân tàu (đã gồm va chạm): tàu bị chặn sẽ không "tích" tốc độ ảo
+        float measuredForward = Vector3.Dot(velocity, forward);
+        float lateral = Vector3.Dot(velocity, right);
+        float brakeDecel = p.deceleration * rotScale;
+
+        sensors.UpdateAvoidance(p, dt);
+        float obstacleSpeedLimit = sensors.SenseObstacle(p, measuredForward, brakeDecel, out Vector3 obstacleSteer);
+
+        float angle = hasInput ? UpdateHeading(forward, obstacleSteer, dt) : 0f;
         if (!hasInput)
         {
-            rb.angularVelocity = Vector3.zero;
-            rb.linearVelocity = new Vector3(0f, yVel, 0f);
-            return;
+            hasPrevHeading = false;
+            headingRate = 0f;
         }
 
-        float speed = moveSpeed * speedMultiplier;
+        float maxSpeed = moveSpeed * speedMultiplier;
+        UpdateSpeed(p, angle, maxSpeed, measuredForward, obstacleSpeedLimit, brakeDecel, dt);
+        Quaternion newRotation = UpdateYaw(p, angle, maxSpeed, dt);
 
-        float turnSpeedDeg = steerRadius > 0f
-            ? speed / Mathf.Max(steerRadius * radiusScale, 0.1f) * Mathf.Rad2Deg
+        // Vận tốc: dọc thân = currentSpeed, ngang thì tắt dần (trôi nhẹ khi cua/va chạm)
+        lateral *= Mathf.Exp(-p.lateralGrip * dt);
+        Vector3 v = newRotation * Vector3.forward * currentSpeed + newRotation * Vector3.right * lateral;
+        rb.linearVelocity = new Vector3(v.x, velocity.y, v.z);
+    }
+
+    private float UpdateHeading(Vector3 forward, Vector3 obstacleSteer, float dt)
+    {
+        Vector3 dir = desiredDirection;
+        Vector3 push = sensors.Avoidance * profile.avoidanceWeight + obstacleSteer;
+        if (push.sqrMagnitude > 0.0001f)
+        {
+            Vector3 blended = dir + push;
+            blended.y = 0f;
+            if (blended.sqrMagnitude > 0.0001f)
+                dir = blended.normalized;
+        }
+
+        float angle = Vector3.SignedAngle(forward, dir, Vector3.up);
+
+        // Đo tốc độ xoay của hướng mong muốn để bù trước (feed-forward)
+        float heading = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
+        if (hasPrevHeading)
+        {
+            float rate = Mathf.DeltaAngle(prevDesiredHeading, heading) / dt;
+            if (Mathf.Abs(rate) > 360f) rate = headingRate; // nhảy hướng (đổi mục tiêu...): bỏ qua
+            headingRate = Mathf.Lerp(headingRate, rate, 1f - Mathf.Exp(-dt / FeedForwardSmoothing));
+        }
+        prevDesiredHeading = heading;
+        hasPrevHeading = true;
+
+        // Mục tiêu gần như ngay sau lưng: giữ chiều đang quay, tránh lật trái/phải liên tục
+        if (Mathf.Abs(angle) > 170f && Mathf.Abs(currentYawRate) > 1f)
+            angle = Mathf.Abs(angle) * Mathf.Sign(currentYawRate);
+
+        return angle;
+    }
+
+    private void UpdateSpeed(BoatHandlingProfile p, float angle, float maxSpeed, float measuredForward,
+                             float obstacleSpeedLimit, float brakeDecel, float dt)
+    {
+        float targetSpeed = 0f;
+        if (hasInput)
+        {
+            float turnT = Mathf.InverseLerp(SharpTurnStartAngle, SharpTurnFullAngle, Mathf.Abs(angle));
+            targetSpeed = maxSpeed * Mathf.Lerp(1f, p.sharpTurnSpeedFactor, turnT) * arrivalFactor;
+        }
+        targetSpeed = Mathf.Min(targetSpeed, obstacleSpeedLimit);
+
+        float speedDiff = targetSpeed - measuredForward;
+        bool speedingUp = speedDiff > 0f;
+        float maxRate = speedingUp ? p.acceleration * rotScale : brakeDecel;
+        float response = speedingUp ? p.speedResponse : p.brakeResponse;
+        float newSpeed = measuredForward + Mathf.Clamp(speedDiff * response, -maxRate, maxRate) * dt;
+
+        // Vật cản phía trước: bám theo đường phanh, nhưng không phanh gắt hơn deceleration
+        newSpeed = Mathf.Min(newSpeed, Mathf.Max(obstacleSpeedLimit, measuredForward - brakeDecel * dt));
+        newSpeed = Mathf.Max(newSpeed, 0f); // không chạy lùi
+
+        lastAcceleration = (newSpeed - currentSpeed) / dt;
+        currentSpeed = newSpeed;
+    }
+
+    private Quaternion UpdateYaw(BoatHandlingProfile p, float angle, float maxSpeed, float dt)
+    {
+        float maxYawRate = steerRadius > 0f
+            ? Mathf.Max(currentSpeed, maxSpeed * 0.3f) / Mathf.Max(steerRadius * radiusScale, 0.1f) * Mathf.Rad2Deg
             : rotateSpeed * rotScale;
 
-        Quaternion newRotation = Quaternion.RotateTowards(
-            rb.rotation,
-            Quaternion.LookRotation(desiredDirection, Vector3.up),
-            turnSpeedDeg * Time.fixedDeltaTime);
+        // Khả năng bẻ lái tăng theo tốc độ: tàu không xoay tròn tại chỗ
+        float speedRatio = maxSpeed > 0.01f ? Mathf.Clamp01(currentSpeed / (maxSpeed * 0.5f)) : 0f;
+        maxYawRate *= Mathf.Lerp(MinTurnAuthority, 1f, speedRatio);
 
-        rb.MoveRotation(newRotation);
-        rb.angularVelocity = Vector3.zero;
+        float targetYawRate = hasInput
+            ? Mathf.Clamp(angle * p.turnResponsiveness + headingRate * p.turnFeedForward, -maxYawRate, maxYawRate)
+            : 0f;
+        float maxYawChange = p.yawAcceleration * rotScale;
+        currentYawRate += Mathf.Clamp((targetYawRate - currentYawRate) * p.yawResponse, -maxYawChange, maxYawChange) * dt;
 
-        Vector3 v = newRotation * Vector3.forward * speed;
-        rb.linearVelocity = new Vector3(v.x, yVel, v.z);
+        rb.angularVelocity = new Vector3(0f, currentYawRate * Mathf.Deg2Rad, 0f);
+        return rb.rotation * Quaternion.Euler(0f, currentYawRate * dt, 0f);
     }
 
     public void RefreshMassScales()
     {
-        float massRatio = Mathf.Max(rb.mass, 0.01f) / Mathf.Max(referenceMass, 0.01f);
+        if (rb == null)
+            rb = GetComponent<Rigidbody>();
 
-        if (massAffectsRotation)
-        {
-            float sqrt = Mathf.Sqrt(massRatio);
-            radiusScale = Mathf.Clamp(sqrt, 0.5f, 3f);
-            rotScale = Mathf.Clamp(1f / sqrt, 0.4f, 2f);
-        }
-        else
-        {
-            radiusScale = 1f;
-            rotScale = 1f;
-        }
-    }
-    private void SetVisualMoving(bool moving)
-    {
-        if (visual == null || moving == visualMoving) return;
-        visualMoving = moving;
-
-        float pitch = moving ? movingPitch : 0f;
-
-        pitchTween?.Kill();
-        pitchTween = visual
-            .DOLocalRotateQuaternion(baseLocalRotation * Quaternion.Euler(pitch, 0f, 0f), pitchSmoothTime)
-            .SetEase(Ease.InOutSine)
-            .SetLink(gameObject);
+        float sqrt = Mathf.Sqrt(Mathf.Max(rb.mass, 0.01f) / Mathf.Max(referenceMass, 0.01f));
+        radiusScale = Mathf.Clamp(sqrt, 0.5f, 3f);
+        rotScale = Mathf.Clamp(1f / sqrt, 0.4f, 2f);
     }
 
-    private void StartBobbing()
+    private void OnDrawGizmosSelected()
     {
-        if (visual == null) return;
-
-        bobTween?.Kill();
-        visual.localPosition = baseLocalPosition + Vector3.down * bobHeight;
-
-        bobTween = visual
-            .DOLocalMoveY(baseLocalPosition.y + bobHeight, bobDuration)
-            .SetEase(Ease.InOutSine)
-            .SetLoops(-1, LoopType.Yoyo)
-            .SetDelay(Random.value * bobDuration)
-            .SetLink(gameObject);
-    }
-
-    private void KillVisualTweens()
-    {
-        bobTween?.Kill();
-        pitchTween?.Kill();
-    }
-
-    private void ResetVisual()
-    {
-        if (visual == null) return;
-
-        KillVisualTweens();
-        visualMoving = false;
-        visual.localRotation = baseLocalRotation;
-        visual.localPosition = baseLocalPosition;
-        StartBobbing();
+        if (profile == null || profile.avoidanceRadius <= 0f) return;
+        Gizmos.color = new Color(0f, 0.6f, 1f, 0.5f);
+        Gizmos.DrawWireSphere(transform.position, profile.avoidanceRadius);
     }
 }

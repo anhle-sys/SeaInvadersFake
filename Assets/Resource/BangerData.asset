@@ -12,13 +12,34 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 26d6c0bb6dd047740946a9beb1e724d2, type: 3}
   m_Name: BangerData
   m_EditorClassIdentifier: Assembly-CSharp::BangerData
+  id: banger
   displayName: Bangger
-  detectionRadius: 15
+  boatType: 1
+  cost: 100
+  killReward: 50
+  detectionRadius: 18
   levels:
   - prefab: {fileID: 1700838897997021517, guid: 95339c24782d0bd4e9904fa2846c3b89, type: 3}
+    damage: 10
     maxHealth: 100
-    moveSpeed: 10
-    rotateSpeed: 80
+    moveSpeed: 16
+    rotateSpeed: 110
+  upgrades:
+  - stat: 4
+    bonusPerLevel: 2
+    maxLevel: 10
+    baseCost: 100
+    costGrowth: 1.15
+  - stat: 2
+    bonusPerLevel: 2
+    maxLevel: 10
+    baseCost: 100
+    costGrowth: 1.15
+  - stat: 3
+    bonusPerLevel: 2
+    maxLevel: 10
+    baseCost: 100
+    costGrowth: 1.15
   explosionRadius: 3
   explosionDamage: 80
   triggerDistance: 5

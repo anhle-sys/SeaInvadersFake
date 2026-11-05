@@ -7,6 +7,12 @@ using UnityEngine.Rendering;
 namespace FlatKit {
 public static class SubAssetMaterial {
     public static Material GetOrCreate(Object settings, string shaderName) {
+        // Asset import worker (chạy nền, không GPU, dùng để tạo thumbnail/preview): shader của hiệu ứng bị coi là
+        // không hỗ trợ -> thành InternalErrorShader. Nếu tiếp tục, code bên dưới sẽ gán lại shader và SaveAssets
+        // ngay trong worker, sinh lỗi "State comes from an incompatible keyword space". Preview cũng không dùng
+        // các hiệu ứng này (AddRenderPasses bỏ qua preview camera), nên bỏ qua hoàn toàn.
+        if (AssetDatabase.IsAssetImportWorkerProcess()) return null;
+
         // Return if called from OnValidate.
         {
             var stackTrace = new System.Diagnostics.StackTrace();

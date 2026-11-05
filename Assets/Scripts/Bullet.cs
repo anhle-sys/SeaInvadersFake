@@ -1,4 +1,3 @@
-using UnityEditor;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody))]
@@ -7,24 +6,31 @@ public class Bullet : MonoBehaviour
 {
     [Header("Bullet Settings")]
     [SerializeField] private float speed = 15f;
-    [SerializeField] private float damage = 10f;
     [SerializeField] private float lifeTime = 5f;
 
     private Rigidbody rb;
     private BoatTeam ownerTeam;
+    private float damage;
     private float timer;
 
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
+        rb.useGravity = false; // đạn bay thẳng; trọng lực làm đạn rơi trước khi tới mục tiêu
     }
 
-    public void Init(BoatTeam team, Vector3 targetPosition)
+    public void Init(BoatTeam team, Vector3 targetPosition, float damageAmount) =>
+        Init(team, targetPosition, Vector3.zero, damageAmount);
+
+    /// <summary>Bắn đón đầu: nhắm vào điểm mà mục tiêu (đang chạy với targetVelocity) sẽ tới khi đạn bay tới.</summary>
+    public void Init(BoatTeam team, Vector3 targetPosition, Vector3 targetVelocity, float damageAmount)
     {
         ownerTeam = team;
+        damage = damageAmount;
         timer = 0f;
 
-        Vector3 direction = targetPosition - transform.position;
+        Vector3 aimPoint = PredictIntercept(transform.position, targetPosition, targetVelocity, speed);
+        Vector3 direction = aimPoint - transform.position;
         direction.y = 0f;
 
         if (direction.sqrMagnitude > 0.001f)
@@ -35,6 +41,39 @@ public class Bullet : MonoBehaviour
 
             rb.linearVelocity = direction * speed;
         }
+    }
+
+    /// <summary>Điểm chặn trên mặt phẳng ngang cho đạn bay thẳng với tốc độ projectileSpeed.</summary>
+    public static Vector3 PredictIntercept(Vector3 shooter, Vector3 target, Vector3 targetVelocity, float projectileSpeed)
+    {
+        Vector3 d = target - shooter; d.y = 0f;
+        Vector3 v = targetVelocity; v.y = 0f;
+        if (v.sqrMagnitude < 0.0001f || projectileSpeed <= 0.01f)
+            return target;
+
+        // |d + v t| = s t  ->  (v·v - s²) t² + 2 (d·v) t + d·d = 0
+        float a = v.sqrMagnitude - projectileSpeed * projectileSpeed;
+        float b = 2f * Vector3.Dot(d, v);
+        float c = d.sqrMagnitude;
+        float t;
+
+        if (Mathf.Abs(a) < 0.0001f)
+        {
+            t = Mathf.Abs(b) > 0.0001f ? -c / b : 0f;
+        }
+        else
+        {
+            float disc = b * b - 4f * a * c;
+            if (disc < 0f)
+                return target; // không đuổi kịp: bắn thẳng
+            float sq = Mathf.Sqrt(disc);
+            float t1 = (-b - sq) / (2f * a);
+            float t2 = (-b + sq) / (2f * a);
+            t = Mathf.Min(t1, t2);
+            if (t <= 0f) t = Mathf.Max(t1, t2);
+        }
+
+        return t > 0f ? target + v * t : target;
     }
 
     private void Update()

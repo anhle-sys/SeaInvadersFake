@@ -13,6 +13,9 @@ public class GameController : MonoBehaviour
     [SerializeField] private Button startgame;
     [SerializeField] public Transform enemyTower;
     [SerializeField] public Transform allyTower;
+    [Header("Economy")]
+    [Tooltip("Số vàng khởi đầu khi chưa có file save")]
+    [SerializeField] private int startingGold = 500;
 
     private void Awake()
     {
@@ -23,6 +26,7 @@ public class GameController : MonoBehaviour
         }
 
         Instance = this;
+        GameData.Load(startingGold);
     }
     public void StartBattle()
     {
@@ -34,20 +38,35 @@ public class GameController : MonoBehaviour
     }
     public bool Purchase(BoatData data)
     {
-        if (data == null || data.GetPrefab(0) == null)
-        {
+        // Chỉ được mua trong pha chuẩn bị
+        if (data == null || IsBattleStarted)
             return false;
-        }
+
+        int level = GameData.GetBoatLevel(data.id);
+        GameObject prefab = data.GetPrefab(level);
+        if (prefab == null)
+            return false;
 
         SpawnSlot emptySlot = GetFirstEmptySlot();
-
         if (emptySlot == null)
+            return false;
+
+        if (!GameData.SpendGold(data.cost))
+            return false;
+
+        GameObject boat = emptySlot.Spawn(prefab);
+        if (boat == null)
         {
+            GameData.AddGold(data.cost); // spawn lỗi -> hoàn tiền
             return false;
         }
 
-        emptySlot.Spawn(data.GetPrefab(0));
+        GameData.Save();
 
+        // Khởi tạo bằng đúng BoatData vừa mua (Start() sẽ bỏ qua vì đã initialized)
+        BoatAIController ai = boat.GetComponent<BoatAIController>();
+        if (ai != null)
+            ai.Initialize(data);
 
         return true;
     }

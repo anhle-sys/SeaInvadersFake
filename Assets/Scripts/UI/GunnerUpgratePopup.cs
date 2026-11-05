@@ -28,6 +28,7 @@ public class GunnerUpgratePopup : MonoBehaviour
         {
             int weaponLevel = GameData.GetUpgradeLevel(boatData.id, StatType.Weapon);
             weaponLevelText.text = $"Level: {weaponLevel}";
+            BindUpgrade(upgrateWeaponButton, boatData, StatType.Weapon);
             upgrateWeaponButton.interactable = weaponLevel < weaponUpgrade.maxLevel;
         }
         // Setup armor upgrade UI
@@ -36,6 +37,7 @@ public class GunnerUpgratePopup : MonoBehaviour
         {
             int armorLevel = GameData.GetUpgradeLevel(boatData.id, StatType.Armor);
             amorLevelText.text = $"Level: {armorLevel}";
+            BindUpgrade(upgrateAmorButton, boatData, StatType.Armor);
             upgrateAmorButton.interactable = armorLevel < armorUpgrade.maxLevel;
         }
         // Setup critical upgrade UI
@@ -44,6 +46,7 @@ public class GunnerUpgratePopup : MonoBehaviour
         {
             int criticalLevel = GameData.GetUpgradeLevel(boatData.id, StatType.Critical);
             criticalStatus.text = $"{criticalLevel}%";
+            BindUpgrade(criticalButton, boatData, StatType.Critical);
             criticalButton.interactable = criticalLevel < criticalUpgrade.maxLevel;
         }
         // Setup evasion upgrade UI
@@ -52,7 +55,18 @@ public class GunnerUpgratePopup : MonoBehaviour
         {
             int evasionLevel = GameData.GetUpgradeLevel(boatData.id, StatType.Evasion);
             evasionStatus.text = $"{evasionLevel}%";
+            BindUpgrade(evasionButton, boatData, StatType.Evasion);
             evasionButton.interactable = evasionLevel < evasionUpgrade.maxLevel;
         }
+    }
+
+    private void BindUpgrade(Button button, BoatData boatData, StatType stat)
+    {
+        button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(() =>
+        {
+            if (GameData.TryUpgrade(boatData, stat))
+                SetupUI(boatData);
+        });
     }
 }

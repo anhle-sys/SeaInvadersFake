@@ -17,6 +17,15 @@ public class BoatAIController : MonoBehaviour
    
     private State state = State.MoveToTower;
     private bool initialized;
+    private BoatStats stats;
+    private Collider selfCollider;
+
+    public BoatStats Stats => stats;
+
+    private void Awake()
+    {
+        selfCollider = GetComponent<Collider>();
+    }
 
     private void Start()
     {
@@ -34,14 +43,18 @@ public class BoatAIController : MonoBehaviour
             return;
         }
 
-        movement.ApplyLevel(data, 0);
+        // Chỉ tàu của người chơi mới được hưởng cấp tàu và nâng cấp đã mua
+        bool usePlayerProgress = targetController.Team == BoatTeam.Ally;
+        stats = BoatStats.Create(data, usePlayerProgress);
+
+        movement.ApplyLevel(data, stats.Level);
         targetController.Configure(data.detectionRadius);
 
         if (health != null)
-            health.SetMaxHealth(data.GetMaxHealth(0));
+            health.Setup(data, stats);
 
         if (combat != null)
-            combat.Setup(data);
+            combat.Setup(data, stats);
 
         initialized = true;
     }
@@ -98,6 +111,21 @@ public class BoatAIController : MonoBehaviour
             return;
         }
 
-        movement.MoveTowards(tower.position, towerStoppingDistance);
+        // Dừng theo mép collider của trụ và của tàu, không phải theo tâm,
+        // để tàu không ép vào trụ mãi khi trụ to hơn towerStoppingDistance
+        Vector3 point = tower.position;
+        float stopDistance = towerStoppingDistance;
+
+        Collider towerCollider = tower.GetComponentInChildren<Collider>();
+        if (towerCollider != null)
+            point = towerCollider.bounds.ClosestPoint(transform.position);
+
+        if (selfCollider != null)
+        {
+            Vector3 ext = selfCollider.bounds.extents;
+            stopDistance += Mathf.Max(ext.x, ext.z);
+        }
+
+        movement.MoveTowards(point, stopDistance);
     }
 }

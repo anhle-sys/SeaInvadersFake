@@ -6,7 +6,7 @@ public abstract class BoatCombatBase : MonoBehaviour
     [SerializeField] protected BoatMovementController movement;
     public abstract float CombatSpeedMultiplier { get; }
 
-    public abstract void Setup(BoatData data);
+    public abstract void Setup(BoatData data, BoatStats stats);
 
     public virtual void OnEnterCombat(Transform enemy) { }
 

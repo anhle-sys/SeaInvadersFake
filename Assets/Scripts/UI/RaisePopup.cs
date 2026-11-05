@@ -22,8 +22,8 @@ public class RaisePopup : MonoBehaviour
 
     private void OnDisable()
     {
+        // Không Disable action: nó dùng chung với các RaisePopup khác
         clickAction.action.performed -= OnClick;
-        clickAction.action.Disable();
     }
 
     private void OnClick(InputAction.CallbackContext context)

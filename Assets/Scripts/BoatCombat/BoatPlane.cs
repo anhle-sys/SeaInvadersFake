@@ -5,15 +5,17 @@ public class BoatPlane : MonoBehaviour
     private BoatTeam team;
     private Transform target;
     private CarrierData data;
+    private BoatStats stats;
 
     private float lifeTimer;
     private float attackTimer;
 
-    public void Init(BoatTeam planeTeam, Transform enemy, CarrierData carrierData)
+    public void Init(BoatTeam planeTeam, Transform enemy, CarrierData carrierData, BoatStats carrierStats)
     {
         team = planeTeam;
         target = enemy;
         data = carrierData;
+        stats = carrierStats;
         lifeTimer = data.planeLifetime;
     }
 
@@ -67,6 +69,9 @@ public class BoatPlane : MonoBehaviour
         GameObject bullet = Instantiate(data.planeBulletPrefab, transform.position, transform.rotation);
         Bullet b = bullet.GetComponent<Bullet>();
         if (b != null)
-            b.Init(team, target.position);
+        {
+            Rigidbody targetRb = target.GetComponent<Rigidbody>();
+            b.Init(team, target.position, targetRb != null ? targetRb.linearVelocity : Vector3.zero, stats.RollDamage());
+        }
     }
 }

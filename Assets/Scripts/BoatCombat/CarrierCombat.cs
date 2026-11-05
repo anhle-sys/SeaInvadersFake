@@ -7,6 +7,7 @@ public class CarrierCombat : BoatCombatBase
     [SerializeField] private Transform launchPoint;
 
     private CarrierData data;
+    private BoatStats stats;
     private float launchTimer;
     private float orbitDirection = 1f;
     private readonly List<BoatPlane> planes = new List<BoatPlane>();
@@ -14,9 +15,10 @@ public class CarrierCombat : BoatCombatBase
     public override float CombatSpeedMultiplier =>
         data != null ? data.combatSpeedMultiplier : 0.3f;
 
-    public override void Setup(BoatData boatData)
+    public override void Setup(BoatData boatData, BoatStats boatStats)
     {
         data = boatData as CarrierData;
+        stats = boatStats;
         if (data == null)
             Debug.LogError($"{name}: CarrierCombat cần CarrierData!");
     }
@@ -61,7 +63,7 @@ public class CarrierCombat : BoatCombatBase
             return;
         }
 
-        plane.Init(targetController.Team, enemy, data);
+        plane.Init(targetController.Team, enemy, data, stats);
         planes.Add(plane);
     }
 }

@@ -6,6 +6,7 @@ public class BoatCombatController : MonoBehaviour
 {
     [Header("Attack")]
     [SerializeField] private GameObject bulletPrefab;
+    [SerializeField] private float damage = 10f;
     [SerializeField] private float attackRange = 8f;
     [SerializeField] private float attackCooldown = 2f;
     [SerializeField] private float volleyDelay = 0.12f;
@@ -63,7 +64,7 @@ public class BoatCombatController : MonoBehaviour
 
         Bullet bulletController = bullet.GetComponent<Bullet>();
         if (bulletController != null)
-            bulletController.Init(targetController.Team, target.position);
+            bulletController.Init(targetController.Team, target.position, damage);
     }
 
     private void OnDrawGizmosSelected()

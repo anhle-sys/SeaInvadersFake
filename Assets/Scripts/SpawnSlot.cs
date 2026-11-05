@@ -5,13 +5,14 @@ public class SpawnSlot : MonoBehaviour
     [Header("Spawn")]
     [SerializeField] private Transform spawnPoint;
 
-    public bool IsOccupied { get; private set; }
+    // Tàu bị Destroy (chết, Banger tự nổ...) thì CurrentObject == null -> ô tự trống lại
+    public bool IsOccupied => CurrentObject != null;
     public GameObject CurrentObject { get; private set; }
 
-    public void Spawn(GameObject prefab)
+    public GameObject Spawn(GameObject prefab)
     {
         if (IsOccupied || prefab == null || spawnPoint == null)
-            return;
+            return null;
 
         CurrentObject = Instantiate(prefab, spawnPoint);
 
@@ -19,7 +20,7 @@ public class SpawnSlot : MonoBehaviour
         t.localPosition = Vector3.zero;
         t.localRotation = Quaternion.Euler(0f, -90f, 0f);
 
-        IsOccupied = true;
+        return CurrentObject;
     }
 
     public void Clear()
@@ -28,6 +29,5 @@ public class SpawnSlot : MonoBehaviour
             Destroy(CurrentObject);
 
         CurrentObject = null;
-        IsOccupied = false;
     }
 }

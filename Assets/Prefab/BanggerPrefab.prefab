@@ -16,6 +16,7 @@ GameObject:
   - component: {fileID: 793442910434517007}
   - component: {fileID: 3034025652714844179}
   - component: {fileID: 676587482349482368}
+  - component: {fileID: 2150375150619940065}
   m_Layer: 6
   m_Name: BanggerPrefab
   m_TagString: Untagged
@@ -99,14 +100,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 54ba01cf8b905534b8dea247fa056f4f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BoatNavMeshController
-  moveSpeed: 10
-  rotateSpeed: 120
-  massAffectsRotation: 1
-  visual: {fileID: 163364535910813439}
-  bobHeight: 0.08
-  bobDuration: 1.2
-  movingPitch: -4
-  pitchSmoothTime: 0.35
+  profile: {fileID: 11400000, guid: 18b6116b7fd1e0b4780f68c418da144b, type: 2}
 --- !u!114 &5646912237505000059
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -139,11 +133,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BoatTargetController
   team: 0
   searchRadius: 8
-  searchInterval: 0.5
+  searchInterval: 0.15
   boatLayer:
     serializedVersion: 2
     m_Bits: 64
-  loseTargetMultiplier: 1.3
+  loseTargetMultiplier: 2
 --- !u!114 &3034025652714844179
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -171,6 +165,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BangerCombat
   targetController: {fileID: 793442910434517007}
   movement: {fileID: 2044562535022105202}
+--- !u!114 &2150375150619940065
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1700838897997021517}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 771f5f91034b7034fbf485c7e69edaa7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BoatVisualFx
+  visual: {fileID: 163364535910813439}
+  bobHeight: 0.08
+  bobDuration: 1.2
+  movingPitch: -4
+  maxRoll: 10
 --- !u!1001 &418511867378477332
 PrefabInstance:
   m_ObjectHideFlags: 0

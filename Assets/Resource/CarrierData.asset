@@ -12,6 +12,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a71ccd3bd51de74995fa5de1ccd841a, type: 3}
   m_Name: CarrierData
   m_EditorClassIdentifier: Assembly-CSharp::CarrierData
+  id: carrier
+  boatType: 3
+  cost: 100
+  killReward: 50
+  upgrades:
+  - stat: 5
+    bonusPerLevel: 2
+    maxLevel: 10
+    baseCost: 100
+    costGrowth: 1.15
+  - stat: 2
+    bonusPerLevel: 2
+    maxLevel: 10
+    baseCost: 100
+    costGrowth: 1.15
+  - stat: 3
+    bonusPerLevel: 2
+    maxLevel: 10
+    baseCost: 100
+    costGrowth: 1.15
   displayName: 
   prefab: {fileID: 0}
   maxHealth: 100

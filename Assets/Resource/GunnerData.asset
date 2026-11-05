@@ -12,23 +12,55 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4dc8fe1f9deb7fa46977b0b3b74e1ed1, type: 3}
   m_Name: GunnerData
   m_EditorClassIdentifier: Assembly-CSharp::GunnerData
+  id: gunner
   displayName: Gunner
-  detectionRadius: 15
+  boatType: 2
+  cost: 100
+  killReward: 50
+  detectionRadius: 18
   levels:
   - prefab: {fileID: 2368469649159627480, guid: 1ac4a242f9e8ec24d8bacd2c3d764c69, type: 3}
+    damage: 10
     maxHealth: 100
-    moveSpeed: 10
-    rotateSpeed: 80
+    moveSpeed: 16
+    rotateSpeed: 110
+  upgrades:
+  - stat: 0
+    bonusPerLevel: 2
+    maxLevel: 10
+    baseCost: 100
+    costGrowth: 1.15
+  - stat: 1
+    bonusPerLevel: 2
+    maxLevel: 10
+    baseCost: 100
+    costGrowth: 1.15
+  - stat: 2
+    bonusPerLevel: 2
+    maxLevel: 10
+    baseCost: 100
+    costGrowth: 1.15
+  - stat: 3
+    bonusPerLevel: 2
+    maxLevel: 10
+    baseCost: 100
+    costGrowth: 1.15
   bulletPrefab: {fileID: 6777685867246855625, guid: b1d834593289c49d898d2ea98753d75f, type: 3}
   attackRange: 15
   attackCooldown: 2
   volleyDelay: 0.12
   cannonSide: 2
-  combatSpeedMultiplier: 0.3
+  combatSpeedMultiplier: 0.5
+  turningSpeedFactor: 0.35
+  engagedSpeedFactor: 0.4
+  turningSlowAngle: 35
+  turningFullSpeedAngle: 10
   combatDistanceRatio: 0.8
   radiusCorrection: 1.5
   turnRadius: 3
-  passDistance: 3
+  passDistance: 0
   passMaxTime: 3
-  orbitCorrectionGain: 8
+  passOffset: 6
+  orbitCorrectionGain: 5
   maxOrbitCorrection: 40
+  maxOutwardCorrection: 15

@@ -79,7 +79,7 @@ GameObject:
   - component: {fileID: 936872929354406696}
   - component: {fileID: 320360016039258098}
   - component: {fileID: 3624130262996640319}
-  - component: {fileID: 2774650125229665614}
+  - component: {fileID: 5198315579593067432}
   m_Layer: 6
   m_Name: Boat
   m_TagString: Untagged
@@ -124,14 +124,14 @@ Rigidbody:
     m_Bits: 0
   m_ExcludeLayers:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 144
   m_ImplicitCom: 1
   m_ImplicitTensor: 1
   m_UseGravity: 0
   m_IsKinematic: 0
   m_Interpolate: 1
   m_Constraints: 84
-  m_CollisionDetection: 2
+  m_CollisionDetection: 3
 --- !u!65 &6528015063108532361
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -165,14 +165,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 54ba01cf8b905534b8dea247fa056f4f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BoatNavMeshController
-  moveSpeed: 10
-  rotateSpeed: 120
-  massAffectsRotation: 1
-  visual: {fileID: 652861714544183229}
-  bobHeight: 0.08
-  bobDuration: 1.2
-  movingPitch: -4
-  pitchSmoothTime: 0.35
+  profile: {fileID: 11400000, guid: 18b6116b7fd1e0b4780f68c418da144b, type: 2}
 --- !u!114 &3551755059056641848
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -205,11 +198,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BoatTargetController
   team: 0
   searchRadius: 8
-  searchInterval: 0.5
+  searchInterval: 0.15
   boatLayer:
     serializedVersion: 2
     m_Bits: 64
-  loseTargetMultiplier: 1.3
+  loseTargetMultiplier: 2
 --- !u!114 &936872929354406696
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -226,8 +219,8 @@ MonoBehaviour:
   cannons:
   - {fileID: 4783431709271291197}
   - {fileID: 6918075179939769368}
-  aimTolerance: 5
-  raycastDistance: 10
+  aimTolerance: 15
+  raycastDistance: 17
   targetLayer:
     serializedVersion: 2
     m_Bits: 64
@@ -259,7 +252,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BoatHealth
   targetController: {fileID: 5687040630268287562}
---- !u!114 &2774650125229665614
+--- !u!114 &5198315579593067432
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -268,15 +261,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 2368469649159627480}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 315fefd6ab50ec14abfc387fdb497be8, type: 3}
+  m_Script: {fileID: 11500000, guid: 771f5f91034b7034fbf485c7e69edaa7, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::RaisePopup
-  mainCamera: {fileID: 0}
-  clickAction: {fileID: 1120369429361536294, guid: 052faaac586de48259a63d0c4782560b, type: 3}
-  popupController: {fileID: 0}
-  oceanLayer:
-    serializedVersion: 2
-    m_Bits: 0
+  m_EditorClassIdentifier: Assembly-CSharp::BoatVisualFx
+  visual: {fileID: 652861714544183229}
+  bobHeight: 0.08
+  bobDuration: 1.2
+  movingPitch: -4
+  maxRoll: 10
 --- !u!1001 &1046479125166334038
 PrefabInstance:
   m_ObjectHideFlags: 0

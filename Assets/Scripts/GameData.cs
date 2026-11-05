@@ -8,6 +8,8 @@ public static class GameData
     private static readonly Dictionary<string, int> upgradeLevels = new();
     private static readonly Dictionary<string, int> boatLevels = new();
     public static event Action<int> OnGoldChanged;
+    /// <summary>Gọi khi tiêu vàng thất bại vì không đủ tiền (tham số: số vàng cần).</summary>
+    public static event Action<int> OnNotEnoughGold;
     public static event Action<string, StatType, int> OnUpgradeChanged;
 
     private const string SaveKey = "GAME_DATA";
@@ -19,7 +21,11 @@ public static class GameData
 
     public static bool SpendGold(int amount)
     {
-        if (Gold < amount) return false;
+        if (Gold < amount)
+        {
+            OnNotEnoughGold?.Invoke(amount);
+            return false;
+        }
         Gold -= amount;
         OnGoldChanged?.Invoke(Gold);
         return true;
@@ -96,12 +102,17 @@ public static class GameData
         PlayerPrefs.Save();
     }
 
-    public static void Load()
+    public static void Load(int defaultGold = 0)
     {
         upgradeLevels.Clear();
         boatLevels.Clear();
 
-        if (!PlayerPrefs.HasKey(SaveKey)) return;
+        if (!PlayerPrefs.HasKey(SaveKey))
+        {
+            Gold = defaultGold;
+            OnGoldChanged?.Invoke(Gold);
+            return;
+        }
 
         var s = JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(SaveKey));
         Gold = s.gold;

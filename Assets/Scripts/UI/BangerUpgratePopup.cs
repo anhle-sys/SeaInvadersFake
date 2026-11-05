@@ -25,6 +25,7 @@ public class BangerUpgratePopup : MonoBehaviour
         {
             int explosiveLevel = GameData.GetUpgradeLevel(boatData.id, StatType.Explosive);
             explosiveLevelText.text = $"Level: {explosiveLevel}";
+            BindUpgrade(upgrateExplosiveButton, boatData, StatType.Explosive);
             upgrateExplosiveButton.interactable = explosiveLevel < explosiveUpgrade.maxLevel;
         }
         // Setup critical upgrade UI
@@ -33,6 +34,7 @@ public class BangerUpgratePopup : MonoBehaviour
         {
             int criticalLevel = GameData.GetUpgradeLevel(boatData.id, StatType.Critical);
             criticalStatus.text = $"{criticalLevel}%";
+            BindUpgrade(criticalButton, boatData, StatType.Critical);
             criticalButton.interactable = criticalLevel < criticalUpgrade.maxLevel;
         }
         // Setup evasion upgrade UI
@@ -41,7 +43,18 @@ public class BangerUpgratePopup : MonoBehaviour
         {
             int evasionLevel = GameData.GetUpgradeLevel(boatData.id, StatType.Evasion);
             evasionStatus.text = $"{evasionLevel}%";
+            BindUpgrade(evasionButton, boatData, StatType.Evasion);
             evasionButton.interactable = evasionLevel < evasionUpgrade.maxLevel;
         }
+    }
+
+    private void BindUpgrade(Button button, BoatData boatData, StatType stat)
+    {
+        button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(() =>
+        {
+            if (GameData.TryUpgrade(boatData, stat))
+                SetupUI(boatData);
+        });
     }
 }
