@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a71ccd3bd51de74995fa5de1ccd841a, type: 3}
+  m_Name: CarrierData
+  m_EditorClassIdentifier: Assembly-CSharp::CarrierData
+  displayName: 
+  prefab: {fileID: 0}
+  maxHealth: 100
+  moveSpeed: 15
+  acceleration: 10
+  rotateSpeed: 120
+  detectionRadius: 15
+  planePrefab: {fileID: 0}
+  planeBulletPrefab: {fileID: 0}
+  maxPlanes: 3
+  planesPerLaunch: 1
+  launchInterval: 4
+  planeSpeed: 8
+  planeTurnSpeed: 120
+  planeLifetime: 15
+  planeAttackRange: 6
+  planeAttackInterval: 1
+  keepDistance: 12
+  combatSpeedMultiplier: 0.3
+  radiusCorrection: 1.5

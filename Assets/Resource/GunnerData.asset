@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4dc8fe1f9deb7fa46977b0b3b74e1ed1, type: 3}
+  m_Name: GunnerData
+  m_EditorClassIdentifier: Assembly-CSharp::GunnerData
+  displayName: Gunner
+  detectionRadius: 15
+  levels:
+  - prefab: {fileID: 2368469649159627480, guid: 1ac4a242f9e8ec24d8bacd2c3d764c69, type: 3}
+    maxHealth: 100
+    moveSpeed: 10
+    rotateSpeed: 80
+  bulletPrefab: {fileID: 6777685867246855625, guid: b1d834593289c49d898d2ea98753d75f, type: 3}
+  attackRange: 15
+  attackCooldown: 2
+  volleyDelay: 0.12
+  cannonSide: 2
+  combatSpeedMultiplier: 0.3
+  combatDistanceRatio: 0.8
+  radiusCorrection: 1.5
+  turnRadius: 3
+  passDistance: 3
+  passMaxTime: 3
+  orbitCorrectionGain: 8
+  maxOrbitCorrection: 40
