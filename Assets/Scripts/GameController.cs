@@ -5,6 +5,7 @@ using UnityEngine.UI;
 public class GameController : MonoBehaviour
 {
     public static GameController Instance { get; private set; }
+    public GameDataController GameDataController { get; private set; }
     public bool IsBattleStarted;
     public static event Action OnBattleStarted;
     [Header("Spawn Slots")]

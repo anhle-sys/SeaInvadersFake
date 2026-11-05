@@ -15,6 +15,7 @@ public class RaisePopup : MonoBehaviour
 
     private void OnEnable()
     {
+        mainCamera = mainCamera != null ? mainCamera : Camera.main;
         clickAction.action.performed += OnClick;
         clickAction.action.Enable();
     }
