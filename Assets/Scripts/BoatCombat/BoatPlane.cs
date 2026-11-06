@@ -66,7 +66,13 @@ public class BoatPlane : MonoBehaviour
 
         attackTimer = data.planeAttackInterval;
 
-        GameObject bullet = Instantiate(data.planeBulletPrefab, transform.position, transform.rotation);
+        if (data.planeBulletPrefab == null)
+        {
+            Debug.LogWarning($"{data.name}: chưa gán planeBulletPrefab, máy bay không bắn được.", data);
+            return;
+        }
+
+        GameObject bullet = SimplePool2.Spawn(data.planeBulletPrefab, transform.position, transform.rotation);
         Bullet b = bullet.GetComponent<Bullet>();
         if (b != null)
         {

@@ -12,9 +12,12 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
     private BoatStats stats;
     private float health;
     private bool isDead;
+    private bool registered;
 
     public event Action<float> OnHealthChanged;
     public event Action OnDied;
+    /// <summary>(sát thương / máu tối đa, vị trí nguồn sát thương). Không gọi khi né được.</summary>
+    public event Action<float, Vector3> OnDamaged;
     public bool IsAlly => Team == BoatTeam.Ally;
     public BoatTeam Team => targetController.Team;
     public bool IsDead => isDead;
@@ -27,24 +30,42 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
         health = boatStats.MaxHealth;
         isDead = false;
 
-        GameController.Instance.HealthBarManager.Register(this);
+        // Không đăng ký 2 thanh máu nếu Setup bị gọi lại
+        if (!registered && GameController.Instance != null && GameController.Instance.HealthBarManager != null)
+        {
+            GameController.Instance.HealthBarManager.Register(this);
+            registered = true;
+        }
     }
 
-    public void TakeDamage(float amount)
+    /// <summary>Cập nhật chỉ số (sau khi mua nâng cấp), giữ nguyên tỉ lệ máu hiện tại.</summary>
+    public void UpdateStats(BoatStats boatStats)
     {
-        if (isDead)
+        if (boatStats == null || isDead)
             return;
 
-        if (stats != null)
-        {
-            if (UnityEngine.Random.value * 100f < stats.Evasion)
-                return;
+        float ratio = stats != null && stats.MaxHealth > 0f ? health / stats.MaxHealth : 1f;
+        stats = boatStats;
+        health = stats.MaxHealth * ratio;
+        OnHealthChanged?.Invoke(Mathf.Clamp01(ratio));
+    }
 
-            amount = Mathf.Max(amount - stats.Armor, amount * MinDamageRatio);
-        }
+    public void TakeDamage(float amount) => TakeDamage(amount, transform.position);
+
+    public void TakeDamage(float amount, Vector3 sourcePosition)
+    {
+        if (isDead || stats == null)
+            return;
+
+        if (UnityEngine.Random.value * 100f < stats.Evasion)
+            return;
+
+        amount = Mathf.Max(amount - stats.Armor, amount * MinDamageRatio);
 
         health -= amount;
-        OnHealthChanged?.Invoke(Mathf.Clamp01(health / stats.MaxHealth));
+        OnHealthChanged?.Invoke(Mathf.Clamp01(health / Mathf.Max(stats.MaxHealth, 0.01f)));
+        // Tỉ lệ sát thương so với máu tối đa: hiệu ứng trúng đòn mạnh/yếu theo cú đánh
+        OnDamaged?.Invoke(amount / Mathf.Max(stats.MaxHealth, 0.01f), sourcePosition);
 
         if (health <= 0f)
             Die();
@@ -58,10 +79,25 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
         if (Team == BoatTeam.Enemy && data != null && data.killReward > 0)
         {
             int reward = Mathf.RoundToInt(data.killReward * GoldBuff.Multiplier);
+            // Không ghi đĩa mỗi lần giết (giật trên mobile); GameController lưu khi pause/thoát
             GameData.AddGold(reward);
-            GameData.Save();
         }
 
         Destroy(gameObject);
+    }
+
+    // Tàu bị Destroy không qua Die() (Banger tự nổ, Clear ô spawn, đổi scene):
+    // vẫn báo để thanh máu được trả về pool, tránh giữ tham chiếu tới object đã hủy
+    private void OnDestroy()
+    {
+        if (!isDead)
+        {
+            isDead = true;
+            OnDied?.Invoke();
+        }
+
+        OnDied = null;
+        OnHealthChanged = null;
+        OnDamaged = null;
     }
 }

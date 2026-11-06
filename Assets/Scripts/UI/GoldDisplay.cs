@@ -127,6 +127,9 @@ public class GoldDisplay : MonoBehaviour, IPointerClickHandler
 
     public void OnPointerClick(PointerEventData eventData)
     {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        // Cheat test: chỉ có trong Editor / Development Build, không lọt vào bản release
         GameData.AddGold(1000);
+#endif
     }
 }

@@ -74,7 +74,7 @@ public class BangerCombat : BoatCombatBase
                 continue;
 
             if (damaged.Add(target))
-                target.TakeDamage(damage);
+                target.TakeDamage(damage, transform.position);
         }
 
         if (data.explosionPrefab != null)

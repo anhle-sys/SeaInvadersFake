@@ -51,6 +51,12 @@ public class CarrierCombat : BoatCombatBase
 
     private void LaunchPlane(Transform enemy)
     {
+        if (data.planePrefab == null)
+        {
+            Debug.LogWarning($"{data.name}: chưa gán planePrefab, tàu sân bay không phóng được máy bay.", data);
+            return;
+        }
+
         Transform point = launchPoint != null ? launchPoint : transform;
 
         GameObject go = Instantiate(data.planePrefab, point.position, point.rotation);

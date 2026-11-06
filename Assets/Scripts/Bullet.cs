@@ -86,6 +86,10 @@ public class Bullet : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
+        // Đã trúng 1 tàu trong cùng bước vật lý / đã trả về pool: không gây sát thương lần nữa
+        if (!gameObject.activeInHierarchy)
+            return;
+
         BoatTargetController target =
             other.GetComponentInParent<BoatTargetController>();
 
@@ -98,7 +102,7 @@ public class Bullet : MonoBehaviour
         BoatHealth health = other.GetComponentInParent<BoatHealth>();
 
         if (health != null)
-            health.TakeDamage(damage);
+            health.TakeDamage(damage, transform.position);
 
         Despawn();
     }
@@ -108,6 +112,7 @@ public class Bullet : MonoBehaviour
         rb.linearVelocity = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
 
-        Destroy(gameObject);
+        // Trả về pool thay vì Destroy (đạn được tạo bằng SimplePool2.Spawn)
+        SimplePool2.Despawn(gameObject);
     }
 }

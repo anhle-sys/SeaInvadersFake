@@ -135,6 +135,10 @@ public static class SimplePool2
     // All of our pools
     public static Dictionary<int, Pool> _pools;
 
+    // Khi tắt Domain Reload: bỏ các pool chứa object của lần Play trước (đã bị hủy)
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics() => _pools = null;
+
     /// <summary>
     /// Initialize our dictionary.
     /// </summary>
@@ -221,7 +225,11 @@ public static class SimplePool2
     /// </summary>
     public static void Despawn(GameObject obj)
     {
+        if (obj == null)
+            return;
+
         Pool p = null;
+        if (_pools != null)
         foreach (var pool in _pools.Values)
         {
             if (pool.MemberIDs.Contains(obj.GetInstanceID()))

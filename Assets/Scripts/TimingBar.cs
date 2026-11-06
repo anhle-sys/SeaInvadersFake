@@ -23,6 +23,8 @@ public class TimingBar : MonoBehaviour
 
     private void Awake()
     {
+        totalWeight = 0f;
+        if (zones == null) return;
         foreach (var z in zones) totalWeight += z.weight;
     }
 
@@ -57,6 +59,9 @@ public class TimingBar : MonoBehaviour
 
     private BuffZone GetZone(float pos)
     {
+        if (zones == null || zones.Length == 0)
+            return null;
+
         float target = pos * totalWeight;
         float acc = 0f;
         foreach (var z in zones)

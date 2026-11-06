@@ -20,6 +20,7 @@ public class GameController : MonoBehaviour
     [SerializeField] private HealthBarManager healthBarManager;
     public HealthBarManager HealthBarManager => healthBarManager;
     [SerializeField] private CameraController cameraController;
+    public CameraController CameraController => cameraController;
     [SerializeField] private TimingBar timingBar;
     [SerializeField] private Button fightBtn;
     [SerializeField] private Image imageBuff;
@@ -43,16 +44,43 @@ public class GameController : MonoBehaviour
         }
 
         Instance = this;
+        GoldBuff.Reset();
         GameData.Load(startingGold);
         fightBtn.onClick.AddListener(OnFightClicked);
     }
-    
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
+    }
+
+    // Lưu các thay đổi chưa ghi (vd: vàng thưởng giết địch) khi app vào nền / thoát.
+    // Trên Android/iOS app có thể bị kill khi đang ở nền, nên phải lưu lúc pause.
+    private void OnApplicationPause(bool paused)
+    {
+        if (paused)
+            GameData.SaveIfDirty();
+    }
+
+    private void OnApplicationQuit() => GameData.SaveIfDirty();
+
+    // Khi tắt Domain Reload (Enter Play Mode Options), biến static giữ nguyên giữa các lần Play:
+    // phải tự reset trước khi scene load.
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        Instance = null;
+        OnBattleStarted = null;
+    }
+
     public void StartBattle()
     {
         if (IsBattleStarted)
             return;
 
         IsBattleStarted = true;
+        GameData.CommitPurchases();   // tàu đã mua giờ được dùng: chốt số vàng đã chi
         OnBattleStarted?.Invoke();
     }
     
@@ -62,7 +90,7 @@ public class GameController : MonoBehaviour
 
         BuffZone zone = timingBar.StopAndGetZone();
         ShowImageBuff();
-        GoldBuff.Set(zone.buffValue);
+        GoldBuff.Set(zone != null ? zone.buffValue : 1f);
         StartGame();
     }
     public void StartGame()

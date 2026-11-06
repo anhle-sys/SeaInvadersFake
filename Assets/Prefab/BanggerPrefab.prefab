@@ -151,6 +151,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BoatHealth
   targetController: {fileID: 793442910434517007}
+  barOffset: {x: 0, y: 2, z: 0}
 --- !u!114 &676587482349482368
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -182,6 +183,14 @@ MonoBehaviour:
   bobDuration: 1.2
   movingPitch: -4
   maxRoll: 10
+  hitTilt: 9
+  hitJolt: 0.18
+  hitSpringStiffness: 260
+  hitSpringDamping: 13
+  fullStrengthDamageRatio: 0.1
+  flashColor: {r: 2.2, g: 0.75, b: 0.6, a: 1}
+  flashDuration: 0.16
+  hitVfxPrefab: {fileID: 4824146226635218643, guid: d5517b12b672a3b439cf0239de055a26, type: 3}
 --- !u!1001 &418511867378477332
 PrefabInstance:
   m_ObjectHideFlags: 0

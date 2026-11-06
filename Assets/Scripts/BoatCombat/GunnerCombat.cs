@@ -74,7 +74,7 @@ public class GunnerCombat : BoatCombatBase
         if (attackTimer > 0f)
             attackTimer -= Time.deltaTime;
 
-        if (aimController.IsAimingAtTarget)
+        if (aimController != null && aimController.IsAimingAtTarget)
             TryAttack(enemy);
 
         movement.Steer(GetCombatDirection(enemy), data.turnRadius);
@@ -173,7 +173,7 @@ public class GunnerCombat : BoatCombatBase
             if (enemy == null || cannon == null)
                 yield break;
 
-            GameObject bullet = Instantiate(data.bulletPrefab, cannon.position, cannon.rotation);
+            GameObject bullet = SimplePool2.Spawn(data.bulletPrefab, cannon.position, cannon.rotation);
             Bullet b = bullet.GetComponent<Bullet>();
             if (b != null)
             {

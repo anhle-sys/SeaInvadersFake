@@ -14,6 +14,8 @@ public class BoatAimController : MonoBehaviour
 
     private readonly List<Transform> readyCannons = new List<Transform>();
     private readonly RaycastHit[] hits = new RaycastHit[8];
+    private Transform cachedTarget;
+    private BoatTargetController cachedEnemy;
 
     public IReadOnlyList<Transform> ReadyCannons => readyCannons;
     public bool IsAimingAtTarget => readyCannons.Count > 0;
@@ -37,7 +39,13 @@ public class BoatAimController : MonoBehaviour
         if (target == null)
             return;
 
-        BoatTargetController enemy = target.GetComponent<BoatTargetController>();
+        // Chỉ GetComponent khi đổi mục tiêu, không phải mỗi frame
+        if (target != cachedTarget)
+        {
+            cachedTarget = target;
+            cachedEnemy = target.GetComponent<BoatTargetController>();
+        }
+        BoatTargetController enemy = cachedEnemy;
 
         foreach (Transform cannon in cannons)
         {

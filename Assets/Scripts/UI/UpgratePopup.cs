@@ -12,26 +12,55 @@ public class UpgratePopup : MonoBehaviour
     [SerializeField] private CarrierUpgratePopup carrierUpgratePopup;
     [SerializeField] private Button back;
 
+    [Header("Focus & hiệu ứng")]
+    [Tooltip("Hiệu ứng đập đồ khi nâng cấp thành công")]
+    [SerializeField] private UpgradeHitFx hitFx;
+
+    private Transform selectedBoat;
+    private BoatData selectedData;
+
+    public bool IsOpen => selectedData != null;
+
     private void Awake()
     {
-        boatClicked.OnRaised += Show;
+        if (boatClicked != null)
+            boatClicked.OnRaised += Show;
+        GameData.OnUpgradeChanged += HandleUpgradeChanged;
     }
 
     private void OnDestroy()
     {
-        boatClicked.OnRaised -= Show;
+        if (boatClicked != null)
+            boatClicked.OnRaised -= Show;
+        GameData.OnUpgradeChanged -= HandleUpgradeChanged;
     }
 
-    public void Show(BoatData boatData)
+    public void Show(BoatSelection selection)
     {
-        SetupUI(boatData);
-        GameController.Instance.PopupManager.botPopup.SetActive(false);
-        back.gameObject.SetActive(true);
-        back.onClick.RemoveAllListeners();
-        back.onClick.AddListener(() =>
+        if (selection.Data == null)
+            return;
+
+        // Chỉ nâng cấp trong pha chuẩn bị
+        GameController gc = GameController.Instance;
+        if (gc == null || gc.IsBattleStarted)
+            return;
+
+        selectedData = selection.Data;
+        selectedBoat = selection.Boat;
+
+        SetupUI(selection.Data);
+        SetBotPopupActive(false);
+
+        if (back != null)
         {
-            Hide();
-        });
+            back.gameObject.SetActive(true);
+            back.onClick.RemoveAllListeners();
+            back.onClick.AddListener(Hide);
+        }
+
+        gc.state = GameState.Upgrade;
+        if (gc.CameraController != null && selectedBoat != null)
+            gc.CameraController.FocusOnBoat(selectedBoat);
     }
 
     private void SetupUI(BoatData boatData)
@@ -64,12 +93,43 @@ public class UpgratePopup : MonoBehaviour
 
     public void Hide()
     {
+        bool wasOpen = IsOpen;
+        selectedBoat = null;
+        selectedData = null;
+
         gunnerUpgratePopup.gameObject.SetActive(false);
         bangerUpgratePopup.gameObject.SetActive(false);
         carrierUpgratePopup.gameObject.SetActive(false);
-        back.gameObject.SetActive(false);
-        GameController.Instance.PopupManager.botPopup.SetActive(true);
+        if (back != null)
+            back.gameObject.SetActive(false);
+        SetBotPopupActive(true);
+
+        // Trả camera về góc nhìn chuẩn bị
+        GameController gc = GameController.Instance;
+        if (wasOpen && gc != null && gc.state == GameState.Upgrade)
+        {
+            gc.state = GameState.Idle;
+            if (gc.CameraController != null)
+                gc.CameraController.ChangeCameraByState();
+        }
     }
 
     public void Back() => Hide();
+
+    // Nâng cấp thành công cho loại tàu đang mở -> đập đồ ở con tàu đang focus
+    private void HandleUpgradeChanged(string boatId, StatType stat, int level)
+    {
+        if (selectedData == null || selectedData.id != boatId || selectedBoat == null)
+            return;
+
+        if (hitFx != null)
+            hitFx.Play(selectedBoat);
+    }
+
+    private static void SetBotPopupActive(bool active)
+    {
+        GameController gc = GameController.Instance;
+        if (gc != null && gc.PopupManager != null && gc.PopupManager.botPopup != null)
+            gc.PopupManager.botPopup.SetActive(active);
+    }
 }

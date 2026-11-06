@@ -55,20 +55,22 @@ public class GunnerUpgratePopup : MonoBehaviour
         if (criticalUpgrade != null)
         {
             int criticalLevel = GameData.GetUpgradeLevel(boatData.id, StatType.Critical);
-            criticalStatus.text = $"{criticalLevel}%";
+            float critChance = GameData.GetCritChance(boatData);
+            criticalStatus.text = $"{critChance:0.#}%";   // % thực tế, không phải cấp
             coinCostCritical.text = $"{GameData.GetUpgradeCost(boatData, StatType.Critical)}";
             BindUpgrade(criticalButton, boatData, StatType.Critical);
-            criticalButton.interactable = criticalLevel < criticalUpgrade.maxLevel;
+            criticalButton.interactable = criticalLevel < criticalUpgrade.maxLevel && critChance < GameData.CritChanceCap;
         }
         // Setup evasion upgrade UI
         var evasionUpgrade = boatData.GetUpgrade(StatType.Evasion);
         if (evasionUpgrade != null)
         {
             int evasionLevel = GameData.GetUpgradeLevel(boatData.id, StatType.Evasion);
-            evasionStatus.text = $"{evasionLevel}%";
+            float evasion = GameData.GetEvasion(boatData);
+            evasionStatus.text = $"{evasion:0.#}%";
             coinCostEvasion.text = $"{GameData.GetUpgradeCost(boatData, StatType.Evasion)}";
             BindUpgrade(evasionButton, boatData, StatType.Evasion);
-            evasionButton.interactable = evasionLevel < evasionUpgrade.maxLevel;
+            evasionButton.interactable = evasionLevel < evasionUpgrade.maxLevel && evasion < GameData.EvasionCap;
         }
     }
 

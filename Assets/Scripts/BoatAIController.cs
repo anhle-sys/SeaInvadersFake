@@ -21,10 +21,31 @@ public class BoatAIController : MonoBehaviour
     private Collider selfCollider;
 
     public BoatStats Stats => stats;
+    public BoatData Data => data;
+
+    private Transform combatTarget;
 
     private void Awake()
     {
         selfCollider = GetComponent<Collider>();
+    }
+
+    private void OnEnable() => GameData.OnUpgradeChanged += HandleUpgradeChanged;
+    private void OnDisable() => GameData.OnUpgradeChanged -= HandleUpgradeChanged;
+
+    // Mua nâng cấp khi tàu đã đặt trên sân: tính lại chỉ số ngay, không đợi lần spawn sau
+    private void HandleUpgradeChanged(string boatId, StatType stat, int level)
+    {
+        if (!initialized || data == null || data.id != boatId || targetController.Team != BoatTeam.Ally)
+            return;
+
+        stats = BoatStats.Create(data, true);
+
+        if (health != null)
+            health.UpdateStats(stats);
+
+        if (combat != null)
+            combat.Setup(data, stats);
     }
 
     private void Start()
@@ -72,7 +93,14 @@ public class BoatAIController : MonoBehaviour
         State desired = targetController.HasBoatTarget ? State.Combat : State.MoveToTower;
 
         if (desired != state)
+        {
             EnterState(desired);
+        }
+        else if (state == State.Combat && targetController.CurrentBoatTarget != combatTarget)
+        {
+            // Đổi thẳng từ địch A sang địch B: chạy lại logic vào trận (chọn mạn, lướt qua...) cho mục tiêu mới
+            EnterState(State.Combat);
+        }
 
         if (state == State.Combat)
         {
@@ -92,11 +120,13 @@ public class BoatAIController : MonoBehaviour
 
         if (state == State.Combat)
         {
+            combatTarget = targetController.CurrentBoatTarget;
             movement.SetSpeedMultiplier(combat.CombatSpeedMultiplier);
-            combat.OnEnterCombat(targetController.CurrentBoatTarget);
+            combat.OnEnterCombat(combatTarget);
         }
         else
         {
+            combatTarget = null;
             movement.SetSpeedMultiplier(1f);
         }
     }

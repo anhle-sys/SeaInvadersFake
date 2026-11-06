@@ -2811,6 +2811,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c5118cd3105a47244b1bd5bf4b492573, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PopupManager
+  botPopup: {fileID: 1581127271}
 --- !u!1 &372588190
 GameObject:
   m_ObjectHideFlags: 0
@@ -3803,7 +3804,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SpawnSlot
   spawnPoint: {fileID: 449629981}
-  IsOccupied: 1
   plane: {fileID: 273642344}
 --- !u!1 &455014340
 GameObject:
@@ -5945,6 +5945,7 @@ MonoBehaviour:
   bangerUpgratePopup: {fileID: 1574859301}
   carrierUpgratePopup: {fileID: 1215453959}
   back: {fileID: 702847572}
+  hitFx: {fileID: 1251473413}
 --- !u!222 &685552655
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -10415,6 +10416,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1251473412}
   - component: {fileID: 1251473411}
+  - component: {fileID: 1251473413}
   m_Layer: 0
   m_Name: GameContoller
   m_TagString: Untagged
@@ -10466,6 +10468,27 @@ Transform:
   - {fileID: 1109178788}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1251473413
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1251473410}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 02902bb4258447247b2f9b1bc5381de0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UpgradeHitFx
+  vfxPrefab: {fileID: 3009578875577290421, guid: b26c91824d6894b45bdbf7b6fbb13f69, type: 3}
+  vfxBowRatio: 0.6
+  vfxHeightOffset: 0.1
+  vfxLifetime: 2
+  punch: {x: 0.12, y: -0.18, z: 0.12}
+  punchDuration: 0.4
+  punchVibrato: 7
+  shakeDuration: 0.25
+  shakeStrength: 0.18
 --- !u!1 &1257893200
 GameObject:
   m_ObjectHideFlags: 0
@@ -11429,7 +11452,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SpawnSlot
   spawnPoint: {fileID: 1357426467}
-  IsOccupied: 0
   plane: {fileID: 1543102538}
 --- !u!1 &1357653469
 GameObject:
@@ -16095,7 +16117,6 @@ GameObject:
   - component: {fileID: 1956279887}
   - component: {fileID: 1956279890}
   - component: {fileID: 1956279891}
-  - component: {fileID: 1956279892}
   - component: {fileID: 1956279893}
   m_Layer: 0
   m_Name: Main Camera
@@ -16239,19 +16260,6 @@ MonoBehaviour:
   blendDistance: 0
   weight: 1
   sharedProfile: {fileID: 11400000, guid: c093ab080b6c44424b2e4851c9011ba9, type: 2}
---- !u!114 &1956279892
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1956279886}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d70c9ba36a8bebe4697e8f8a9da58409, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  pipelineAsset: {fileID: 11400000, guid: ecbd363870e07455ea237f5753668d30, type: 2}
 --- !u!114 &1956279893
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -16269,6 +16277,15 @@ MonoBehaviour:
   battleCamera: {fileID: 1526502830}
   upgrateCamera: {fileID: 0}
   moveDuration: 0.8
+  focusDistance: 5.5
+  focusHeight: 2.2
+  focusSide: 2.2
+  framePadding: 1.25
+  freeScreenHeight: 0.65
+  lookAtBowRatio: 0.6
+  lookHeight: 0.4
+  focusViewportY: 0.68
+  focusDuration: 0.6
 --- !u!1 &1972066484
 GameObject:
   m_ObjectHideFlags: 0
@@ -16424,7 +16441,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SpawnSlot
   spawnPoint: {fileID: 1980454964}
-  IsOccupied: 0
   plane: {fileID: 1151629049}
 --- !u!1 &1987019705
 GameObject:
@@ -16735,7 +16751,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SpawnSlot
   spawnPoint: {fileID: 2000404681}
-  IsOccupied: 0
   plane: {fileID: 372588190}
 --- !u!1001 &2013616671
 PrefabInstance:

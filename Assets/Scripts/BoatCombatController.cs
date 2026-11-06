@@ -60,7 +60,7 @@ public class BoatCombatController : MonoBehaviour
 
     private void Shoot(Transform cannon, Transform target)
     {
-        GameObject bullet = Instantiate(bulletPrefab, cannon.position, cannon.rotation);
+        GameObject bullet = SimplePool2.Spawn(bulletPrefab, cannon.position, cannon.rotation);
 
         Bullet bulletController = bullet.GetComponent<Bullet>();
         if (bulletController != null)

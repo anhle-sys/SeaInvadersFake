@@ -22,16 +22,21 @@ public class WorldClickHandler : MonoBehaviour
     {
         if(GameController.Instance == null || GameController.Instance.IsBattleStarted)
             return;
-        if (!clickAction.action.WasPerformedThisFrame())
+        // Action "Click" là PassThrough: WasPerformedThisFrame() đúng cả lúc nhấn lẫn lúc thả -> click bị xử lý 2 lần.
+        // Chỉ xử lý lúc nhấn.
+        if (!clickAction.action.WasPressedThisFrame())
             return;
 
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
             return;
 
-        if (Mouse.current == null)
+        // Pointer.current = chuột, bút hoặc màn hình cảm ứng (thiết bị vừa dùng gần nhất).
+        // Mouse.current luôn null trên điện thoại không có chuột.
+        Pointer pointer = Pointer.current;
+        if (pointer == null || mainCamera == null)
             return;
 
-        Ray ray = mainCamera.ScreenPointToRay(Mouse.current.position.ReadValue());
+        Ray ray = mainCamera.ScreenPointToRay(pointer.position.ReadValue());
 
         if (Physics.Raycast(ray, out RaycastHit hit, maxDistance, clickableLayers,
                             QueryTriggerInteraction.Collide))

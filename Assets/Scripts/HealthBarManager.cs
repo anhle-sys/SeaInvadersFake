@@ -12,7 +12,7 @@ public class HealthBarManager : MonoBehaviour
     public void Register(IHealthBarTarget t)
     {
         HealthBar bar = pool.Count > 0 ? pool.Dequeue() : Instantiate(prefab, transform);
-        bar.Bind(t, cam);
+        bar.Bind(t, cam, this);
     }
 
     public void Return(HealthBar bar)

@@ -50,17 +50,17 @@ public class PurchasePopup : MonoBehaviour
         if (emptySlot == null)
             return;
 
-        if (!GameData.SpendGold(data.cost))
+        // Tàu chưa được lưu: vàng chỉ bị chốt khi trận bắt đầu (GameData.CommitPurchases).
+        // Thoát game trước đó thì lần sau mở lại sẽ được hoàn vàng.
+        if (!GameData.SpendGoldForPurchase(data.cost))
             return;
 
         GameObject boat = emptySlot.Spawn(prefab);
         if (boat == null)
         {
-            GameData.AddGold(data.cost);
+            GameData.RefundPurchase(data.cost);
             return;
         }
-
-        GameData.Save();
 
         BoatAIController ai = boat.GetComponent<BoatAIController>();
         if (ai != null)
