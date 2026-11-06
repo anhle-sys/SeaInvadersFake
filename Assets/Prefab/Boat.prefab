@@ -80,6 +80,7 @@ GameObject:
   - component: {fileID: 320360016039258098}
   - component: {fileID: 3624130262996640319}
   - component: {fileID: 5198315579593067432}
+  - component: {fileID: 6909268774746980960}
   m_Layer: 6
   m_Name: Boat
   m_TagString: Untagged
@@ -269,6 +270,20 @@ MonoBehaviour:
   bobDuration: 1.2
   movingPitch: -4
   maxRoll: 10
+--- !u!114 &6909268774746980960
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2368469649159627480}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0ce980e0705dcdd4fba6375f73bc89df, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BoatClickable
+  boatData: {fileID: 11400000, guid: 7536031dd8e007442a0c71d1a6f32534, type: 2}
+  channel: {fileID: 11400000, guid: 21af124081eb4f54e90b0fd282f3b909, type: 2}
 --- !u!1001 &1046479125166334038
 PrefabInstance:
   m_ObjectHideFlags: 0

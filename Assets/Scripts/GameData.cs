@@ -8,7 +8,6 @@ public static class GameData
     private static readonly Dictionary<string, int> upgradeLevels = new();
     private static readonly Dictionary<string, int> boatLevels = new();
     public static event Action<int> OnGoldChanged;
-    /// <summary>Gọi khi tiêu vàng thất bại vì không đủ tiền (tham số: số vàng cần).</summary>
     public static event Action<int> OnNotEnoughGold;
     public static event Action<string, StatType, int> OnUpgradeChanged;
 

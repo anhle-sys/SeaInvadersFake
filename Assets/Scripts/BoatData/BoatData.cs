@@ -46,9 +46,7 @@ public abstract class BoatData : ScriptableObject
     public BoatType boatType;
 
     [Header("Economy")]
-    [Tooltip("Giá mua tàu (vàng)")]
     public int cost = 100;
-    [Tooltip("Vàng nhận được khi hạ tàu này (khi nó thuộc phe Enemy)")]
     public int killReward = 50;
 
     [Header("Detection")]

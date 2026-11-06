@@ -1,18 +1,37 @@
-using System;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class UpgratePopup : MonoBehaviour
 {
+    [Header("Events")]
+    [SerializeField] private BoatDataEventChannel boatClicked; // kéo asset BoatClicked vào
+
     [Header("References")]
-    [SerializeField] private GameObject popup;
     [SerializeField] private GunnerUpgratePopup gunnerUpgratePopup;
     [SerializeField] private BangerUpgratePopup bangerUpgratePopup;
     [SerializeField] private CarrierUpgratePopup carrierUpgratePopup;
+    [SerializeField] private Button back;
+
+    private void Awake()
+    {
+        boatClicked.OnRaised += Show;
+    }
+
+    private void OnDestroy()
+    {
+        boatClicked.OnRaised -= Show;
+    }
 
     public void Show(BoatData boatData)
     {
-        popup.SetActive(true);
         SetupUI(boatData);
+        GameController.Instance.PopupManager.botPopup.SetActive(false);
+        back.gameObject.SetActive(true);
+        back.onClick.RemoveAllListeners();
+        back.onClick.AddListener(() =>
+        {
+            Hide();
+        });
     }
 
     private void SetupUI(BoatData boatData)
@@ -45,11 +64,12 @@ public class UpgratePopup : MonoBehaviour
 
     public void Hide()
     {
-        popup.SetActive(false);
+        gunnerUpgratePopup.gameObject.SetActive(false);
+        bangerUpgratePopup.gameObject.SetActive(false);
+        carrierUpgratePopup.gameObject.SetActive(false);
+        back.gameObject.SetActive(false);
+        GameController.Instance.PopupManager.botPopup.SetActive(true);
     }
-    
-    public void Back()
-    {
-        Hide();
-    }
+
+    public void Back() => Hide();
 }

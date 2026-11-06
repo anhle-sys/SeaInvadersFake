@@ -1,11 +1,6 @@
 using DG.Tweening;
 using UnityEngine;
 
-/// <summary>
-/// Hiệu ứng hình ảnh của tàu (không ảnh hưởng vật lý):
-/// nhấp nhô (DOTween), ngóc/chúi mũi theo tốc độ và gia tốc, nghiêng thân khi cua.
-/// Chỉ đọc trạng thái từ BoatMovementController.
-/// </summary>
 [RequireComponent(typeof(BoatMovementController))]
 public class BoatVisualFx : MonoBehaviour
 {
@@ -13,13 +8,10 @@ public class BoatVisualFx : MonoBehaviour
     private const float MaxAccelerationPitch = 4f;
     private const float SmoothTime = 0.3f;
 
-    [Tooltip("Model con của tàu. KHÔNG phải root có Rigidbody")]
     [SerializeField] private Transform visual;
     [SerializeField] private float bobHeight = 0.08f;
     [SerializeField] private float bobDuration = 1.2f;
-    [Tooltip("Âm = ngóc mũi lên khi chạy hết tốc")]
     [SerializeField] private float movingPitch = -4f;
-    [Tooltip("Góc nghiêng thân tối đa khi cua")]
     [SerializeField] private float maxRoll = 10f;
 
     private BoatMovementController movement;
@@ -34,7 +26,7 @@ public class BoatVisualFx : MonoBehaviour
         movement = GetComponent<BoatMovementController>();
         if (visual == null)
         {
-            Debug.LogWarning($"{name}: chưa gán Visual cho BoatVisualFx, hiệu ứng hình ảnh sẽ bị tắt.", this);
+            Debug.LogError($"{name}: chưa gán Visual cho BoatVisualFx, hiệu ứng hình ảnh sẽ bị tắt.", this);
             return;
         }
 

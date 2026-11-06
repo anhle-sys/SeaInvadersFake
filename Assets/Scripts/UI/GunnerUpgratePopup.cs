@@ -4,15 +4,23 @@ using UnityEngine.UI;
 
 public class GunnerUpgratePopup : MonoBehaviour
 {
+    [Header("Weapon Upgrade UI")]
     [SerializeField] private TMP_Text weaponLevelText;
     [SerializeField] private Image weaponImage;
+    [SerializeField] private TMP_Text coinCostWeapon;
     [SerializeField] private Button upgrateWeaponButton;
+    [Header("Armor Upgrade UI")]
     [SerializeField] private TMP_Text amorLevelText;
     [SerializeField] private Image amorImage;
+    [SerializeField] private TMP_Text coinCostAmor;
     [SerializeField] private Button upgrateAmorButton;
+    [Header("Critical Upgrades UI")]
     [SerializeField] private TMP_Text criticalStatus;
+    [SerializeField] private TMP_Text coinCostCritical;
     [SerializeField] private Button criticalButton;
+    [Header("Evasion Upgrades UI")]
     [SerializeField] private TMP_Text evasionStatus;
+    [SerializeField] private TMP_Text coinCostEvasion;
     [SerializeField] private Button evasionButton;
 
     public void SetupUI(BoatData boatData)
@@ -28,6 +36,7 @@ public class GunnerUpgratePopup : MonoBehaviour
         {
             int weaponLevel = GameData.GetUpgradeLevel(boatData.id, StatType.Weapon);
             weaponLevelText.text = $"Level: {weaponLevel}";
+            coinCostWeapon.text = $"{GameData.GetUpgradeCost(boatData, StatType.Weapon)}";
             BindUpgrade(upgrateWeaponButton, boatData, StatType.Weapon);
             upgrateWeaponButton.interactable = weaponLevel < weaponUpgrade.maxLevel;
         }
@@ -37,6 +46,7 @@ public class GunnerUpgratePopup : MonoBehaviour
         {
             int armorLevel = GameData.GetUpgradeLevel(boatData.id, StatType.Armor);
             amorLevelText.text = $"Level: {armorLevel}";
+            coinCostAmor.text = $"{GameData.GetUpgradeCost(boatData, StatType.Armor)}";
             BindUpgrade(upgrateAmorButton, boatData, StatType.Armor);
             upgrateAmorButton.interactable = armorLevel < armorUpgrade.maxLevel;
         }
@@ -46,6 +56,7 @@ public class GunnerUpgratePopup : MonoBehaviour
         {
             int criticalLevel = GameData.GetUpgradeLevel(boatData.id, StatType.Critical);
             criticalStatus.text = $"{criticalLevel}%";
+            coinCostCritical.text = $"{GameData.GetUpgradeCost(boatData, StatType.Critical)}";
             BindUpgrade(criticalButton, boatData, StatType.Critical);
             criticalButton.interactable = criticalLevel < criticalUpgrade.maxLevel;
         }
@@ -55,6 +66,7 @@ public class GunnerUpgratePopup : MonoBehaviour
         {
             int evasionLevel = GameData.GetUpgradeLevel(boatData.id, StatType.Evasion);
             evasionStatus.text = $"{evasionLevel}%";
+            coinCostEvasion.text = $"{GameData.GetUpgradeCost(boatData, StatType.Evasion)}";
             BindUpgrade(evasionButton, boatData, StatType.Evasion);
             evasionButton.interactable = evasionLevel < evasionUpgrade.maxLevel;
         }

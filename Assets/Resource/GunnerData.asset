@@ -59,8 +59,8 @@ MonoBehaviour:
   radiusCorrection: 1.5
   turnRadius: 3
   passDistance: 0
-  passMaxTime: 3
-  passOffset: 6
+  passMaxTime: 2
+  passOffset: 5
   orbitCorrectionGain: 5
   maxOrbitCorrection: 40
   maxOutwardCorrection: 15

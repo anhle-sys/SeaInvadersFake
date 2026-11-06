@@ -1,14 +1,9 @@
 using DG.Tweening;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
-/// <summary>
-/// Hiển thị số vàng của người chơi.
-/// - Số chạy dần tới giá trị mới khi vàng thay đổi.
-/// - Nảy lên + nháy màu khi nhận vàng, nháy màu khi tiêu vàng.
-/// - Rung + nháy đỏ khi mua thất bại vì không đủ vàng.
-/// </summary>
-public class GoldDisplay : MonoBehaviour
+public class GoldDisplay : MonoBehaviour, IPointerClickHandler
 {
     [Header("References")]
     [SerializeField] private TMP_Text goldText;
@@ -128,5 +123,10 @@ public class GoldDisplay : MonoBehaviour
         countTween?.Kill();
         scaleTween?.Kill(true);
         colorTween?.Kill();
+    }
+
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        GameData.AddGold(1000);
     }
 }
