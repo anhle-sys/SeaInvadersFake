@@ -20,7 +20,6 @@ public class BoatAimController : MonoBehaviour
     public IReadOnlyList<Transform> ReadyCannons => readyCannons;
     public bool IsAimingAtTarget => readyCannons.Count > 0;
 
-    /// <summary>Đồng bộ tầm tia ngắm với tầm bắn của tàu (tia phải chạm được mục tiêu ở tầm bắn).</summary>
     public void Configure(float attackRange)
     {
         raycastDistance = attackRange * 1.1f;

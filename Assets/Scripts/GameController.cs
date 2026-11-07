@@ -55,8 +55,6 @@ public class GameController : MonoBehaviour
             Instance = null;
     }
 
-    // Lưu các thay đổi chưa ghi (vd: vàng thưởng giết địch) khi app vào nền / thoát.
-    // Trên Android/iOS app có thể bị kill khi đang ở nền, nên phải lưu lúc pause.
     private void OnApplicationPause(bool paused)
     {
         if (paused)
@@ -65,8 +63,6 @@ public class GameController : MonoBehaviour
 
     private void OnApplicationQuit() => GameData.SaveIfDirty();
 
-    // Khi tắt Domain Reload (Enter Play Mode Options), biến static giữ nguyên giữa các lần Play:
-    // phải tự reset trước khi scene load.
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()
     {

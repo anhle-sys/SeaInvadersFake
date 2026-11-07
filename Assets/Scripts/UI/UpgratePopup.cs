@@ -13,11 +13,11 @@ public class UpgratePopup : MonoBehaviour
     [SerializeField] private Button back;
 
     [Header("Focus & hiệu ứng")]
-    [Tooltip("Hiệu ứng đập đồ khi nâng cấp thành công")]
     [SerializeField] private UpgradeHitFx hitFx;
 
     private Transform selectedBoat;
     private BoatData selectedData;
+    private string selectedInstanceId;   // id riêng của tàu đang chọn: nâng cấp tính theo từng tàu
 
     public bool IsOpen => selectedData != null;
 
@@ -35,10 +35,16 @@ public class UpgratePopup : MonoBehaviour
         GameData.OnUpgradeChanged -= HandleUpgradeChanged;
     }
 
-    public void Show(BoatSelection selection)
+public void Show(BoatSelection selection)
     {
         if (selection.Data == null)
             return;
+
+        if (string.IsNullOrEmpty(selection.InstanceId))
+        {
+            Debug.LogError("UpgratePopup: tàu được chọn chưa có InstanceId, không thể nâng cấp.");
+            return;
+        }
 
         // Chỉ nâng cấp trong pha chuẩn bị
         GameController gc = GameController.Instance;
@@ -46,9 +52,10 @@ public class UpgratePopup : MonoBehaviour
             return;
 
         selectedData = selection.Data;
+        selectedInstanceId = selection.InstanceId;
         selectedBoat = selection.Boat;
 
-        SetupUI(selection.Data);
+        SetupUI(selection.Data, selection.InstanceId);
         SetBotPopupActive(false);
 
         if (back != null)
@@ -63,7 +70,7 @@ public class UpgratePopup : MonoBehaviour
             gc.CameraController.FocusOnBoat(selectedBoat);
     }
 
-    private void SetupUI(BoatData boatData)
+private void SetupUI(BoatData boatData, string instanceId)
     {
         switch (boatData.boatType)
         {
@@ -71,19 +78,19 @@ public class UpgratePopup : MonoBehaviour
                 gunnerUpgratePopup.gameObject.SetActive(true);
                 bangerUpgratePopup.gameObject.SetActive(false);
                 carrierUpgratePopup.gameObject.SetActive(false);
-                gunnerUpgratePopup.SetupUI(boatData);
+                gunnerUpgratePopup.SetupUI(boatData, instanceId);
                 break;
             case BoatType.Banger:
                 gunnerUpgratePopup.gameObject.SetActive(false);
                 bangerUpgratePopup.gameObject.SetActive(true);
                 carrierUpgratePopup.gameObject.SetActive(false);
-                bangerUpgratePopup.SetupUI(boatData);
+                bangerUpgratePopup.SetupUI(boatData, instanceId);
                 break;
             case BoatType.Carrier:
                 gunnerUpgratePopup.gameObject.SetActive(false);
                 bangerUpgratePopup.gameObject.SetActive(false);
                 carrierUpgratePopup.gameObject.SetActive(true);
-                carrierUpgratePopup.SetupUI(boatData);
+                carrierUpgratePopup.SetupUI(boatData, instanceId);
                 break;
             default:
                 Debug.LogError($"Unsupported boat type: {boatData.boatType}");
@@ -96,6 +103,7 @@ public class UpgratePopup : MonoBehaviour
         bool wasOpen = IsOpen;
         selectedBoat = null;
         selectedData = null;
+        selectedInstanceId = null;
 
         gunnerUpgratePopup.gameObject.SetActive(false);
         bangerUpgratePopup.gameObject.SetActive(false);
@@ -116,10 +124,9 @@ public class UpgratePopup : MonoBehaviour
 
     public void Back() => Hide();
 
-    // Nâng cấp thành công cho loại tàu đang mở -> đập đồ ở con tàu đang focus
-    private void HandleUpgradeChanged(string boatId, StatType stat, int level)
+private void HandleUpgradeChanged(string instanceId, StatType stat, int level)
     {
-        if (selectedData == null || selectedData.id != boatId || selectedBoat == null)
+        if (selectedData == null || selectedInstanceId != instanceId || selectedBoat == null)
             return;
 
         if (hitFx != null)

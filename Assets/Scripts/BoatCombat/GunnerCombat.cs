@@ -81,14 +81,6 @@ public class GunnerCombat : BoatCombatBase
         movement.SetSpeedMultiplier(data.combatSpeedMultiplier * GetTurningSpeedFactor(enemy));
     }
 
-    /// <summary>
-    /// Tỉ lệ tốc độ trong combat (nhân với combatSpeedMultiplier):
-    /// - Đang lướt qua địch: giữ tốc độ combat.
-    /// - Địch còn xa ngoài vùng giao chiến: tăng dần lên tốc độ combat để tiến lại gần.
-    /// - Trong vùng giao chiến: chạy chậm. Đang quay hông thì chậm nhất (turningSpeedFactor),
-    ///   hông đã chĩa vào địch thì giữ chậm (engagedSpeedFactor) để lượn bắn.
-    /// Khi địch chết / mất mục tiêu, AI thoát combat và trả tốc độ về bình thường để đi tìm địch khác.
-    /// </summary>
     private float GetTurningSpeedFactor(Transform enemy)
     {
         if (isPassing)

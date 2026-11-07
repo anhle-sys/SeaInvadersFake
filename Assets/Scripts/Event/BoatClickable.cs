@@ -10,13 +10,13 @@ public class BoatClickable : MonoBehaviour, IClickable
 
     private void Awake() => ai = GetComponent<BoatAIController>();
 
-    public void OnClicked(RaycastHit hit)
+public void OnClicked(RaycastHit hit)
     {
         if (channel == null)
             return;
 
         BoatData data = ai != null && ai.Data != null ? ai.Data : boatData;
         if (data != null)
-            channel.Raise(new BoatSelection(data, transform));
+            channel.Raise(new BoatSelection(data, transform, ai != null ? ai.InstanceId : null));
     }
 }

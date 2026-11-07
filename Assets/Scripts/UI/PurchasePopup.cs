@@ -15,7 +15,8 @@ public class PurchasePopup : MonoBehaviour
         GameController.Instance.PopupManager.botPopup.SetActive(false);
         foreach (var spawn in GameController.Instance.SpawnSlots)
         {
-            if(spawn.IsOccupied)
+            spawn.Init();
+            if (spawn.IsOccupied)
             {
                 spawn.plane.gameObject.SetActive(false);
             }
@@ -37,7 +38,6 @@ public class PurchasePopup : MonoBehaviour
     }
     public void Purchase(BoatData data)
     {
-        // Chỉ được mua trong pha chuẩn bị
         if (data == null || GameController.Instance.IsBattleStarted)
             return;
 
@@ -50,8 +50,6 @@ public class PurchasePopup : MonoBehaviour
         if (emptySlot == null)
             return;
 
-        // Tàu chưa được lưu: vàng chỉ bị chốt khi trận bắt đầu (GameData.CommitPurchases).
-        // Thoát game trước đó thì lần sau mở lại sẽ được hoàn vàng.
         if (!GameData.SpendGoldForPurchase(data.cost))
             return;
 
@@ -62,9 +60,13 @@ public class PurchasePopup : MonoBehaviour
             return;
         }
 
+        if (emptySlot.plane != null)
+            emptySlot.plane.SetActive(false);
+
         BoatAIController ai = boat.GetComponent<BoatAIController>();
         if (ai != null)
-            ai.Initialize(data);
+            // Mỗi lần mua một id riêng -> nâng cấp của tàu này không dùng chung với tàu cùng loại khác
+            ai.Initialize(data, GameData.NewBoatInstanceId(data.id));
 
     }
 

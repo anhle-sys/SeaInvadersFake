@@ -11,7 +11,7 @@ public class BoatStats
     public float CritChance;  // %
     public float Evasion;     // %
 
-    public static BoatStats Create(BoatData data, bool usePlayerProgress)
+public static BoatStats Create(BoatData data, bool usePlayerProgress, string instanceId = null)
     {
         int level = usePlayerProgress ? GameData.GetBoatLevel(data.id) : 0;
         BoatLevelStats levelStats = data.GetLevel(level);
@@ -25,21 +25,22 @@ public class BoatStats
 
         if (usePlayerProgress)
         {
+            // Nâng cấp tính theo từng con tàu (instanceId), không theo loại tàu
             switch (data.boatType)
             {
                 case BoatType.Banger:
-                    stats.Damage += GameData.GetUpgradeBonus(data, StatType.Explosive);
+                    stats.Damage += GameData.GetUpgradeBonus(data, instanceId, StatType.Explosive);
                     break;
                 case BoatType.Gunner:
-                    stats.Damage += GameData.GetUpgradeBonus(data, StatType.Weapon);
+                    stats.Damage += GameData.GetUpgradeBonus(data, instanceId, StatType.Weapon);
                     break;
                 case BoatType.Carrier:
-                    stats.Damage += GameData.GetUpgradeBonus(data, StatType.Air);
+                    stats.Damage += GameData.GetUpgradeBonus(data, instanceId, StatType.Air);
                     break;
             }
-            stats.Armor = GameData.GetArmor(data);
-            stats.CritChance = GameData.GetCritChance(data);
-            stats.Evasion = GameData.GetEvasion(data);
+            stats.Armor = GameData.GetArmor(data, instanceId);
+            stats.CritChance = GameData.GetCritChance(data, instanceId);
+            stats.Evasion = GameData.GetEvasion(data, instanceId);
         }
 
         return stats;

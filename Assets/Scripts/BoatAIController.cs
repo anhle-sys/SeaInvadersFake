@@ -23,6 +23,9 @@ public class BoatAIController : MonoBehaviour
     public BoatStats Stats => stats;
     public BoatData Data => data;
 
+    // Id riêng của từng tàu người chơi (mỗi lần mua một id) để nâng cấp không dùng chung giữa các tàu cùng loại
+    public string InstanceId { get; private set; }
+
     private Transform combatTarget;
 
     private void Awake()
@@ -34,12 +37,12 @@ public class BoatAIController : MonoBehaviour
     private void OnDisable() => GameData.OnUpgradeChanged -= HandleUpgradeChanged;
 
     // Mua nâng cấp khi tàu đã đặt trên sân: tính lại chỉ số ngay, không đợi lần spawn sau
-    private void HandleUpgradeChanged(string boatId, StatType stat, int level)
+private void HandleUpgradeChanged(string instanceId, StatType stat, int level)
     {
-        if (!initialized || data == null || data.id != boatId || targetController.Team != BoatTeam.Ally)
+        if (!initialized || data == null || InstanceId != instanceId || targetController.Team != BoatTeam.Ally)
             return;
 
-        stats = BoatStats.Create(data, true);
+        stats = BoatStats.Create(data, true, InstanceId);
 
         if (health != null)
             health.UpdateStats(stats);
@@ -48,13 +51,16 @@ public class BoatAIController : MonoBehaviour
             combat.Setup(data, stats);
     }
 
+private void OnDestroy() => GameData.ReleaseBoat(InstanceId);
+
+
     private void Start()
     {
         if (!initialized)
             Initialize(data);
     }
 
-    public void Initialize(BoatData boatData)
+public void Initialize(BoatData boatData, string instanceId = null)
     {
         data = boatData;
 
@@ -66,7 +72,23 @@ public class BoatAIController : MonoBehaviour
 
         // Chỉ tàu của người chơi mới được hưởng cấp tàu và nâng cấp đã mua
         bool usePlayerProgress = targetController.Team == BoatTeam.Ally;
-        stats = BoatStats.Create(data, usePlayerProgress);
+
+        if (usePlayerProgress)
+        {
+            // Tàu không được truyền id (vd: đặt sẵn trong scene) thì tự cấp một id riêng
+            if (string.IsNullOrEmpty(instanceId))
+                instanceId = !string.IsNullOrEmpty(InstanceId) ? InstanceId : GameData.NewBoatInstanceId(data.id);
+
+            if (InstanceId != instanceId)
+                GameData.ReleaseBoat(InstanceId);
+            InstanceId = instanceId;
+        }
+        else
+        {
+            InstanceId = null;
+        }
+
+        stats = BoatStats.Create(data, usePlayerProgress, InstanceId);
 
         movement.ApplyLevel(data, stats.Level);
         targetController.Configure(data.detectionRadius);

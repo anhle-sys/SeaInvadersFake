@@ -8,8 +8,20 @@ public class SpawnSlot : MonoBehaviour
     public GameObject plane;
     public GameObject CurrentObject { get; private set; }
 
-    // Tàu bị Destroy (chết, Banger tự nổ...) thì CurrentObject == null (Unity null) -> ô tự trống lại
     public bool IsOccupied => CurrentObject != null;
+    public void Init()
+    {
+        BoatCombatBase boatCombat = GetComponentInChildren<BoatCombatBase>();
+
+        if (boatCombat != null)
+        {
+            CurrentObject = boatCombat.gameObject;
+        }
+        else
+        {
+            return;
+        }
+    }
 
     public GameObject Spawn(GameObject prefab)
     {

@@ -23,7 +23,7 @@ public class GunnerUpgratePopup : MonoBehaviour
     [SerializeField] private TMP_Text coinCostEvasion;
     [SerializeField] private Button evasionButton;
 
-    public void SetupUI(BoatData boatData)
+    public void SetupUI(BoatData boatData, string instanceId)
     {
         if (boatData == null)
         {
@@ -34,53 +34,53 @@ public class GunnerUpgratePopup : MonoBehaviour
         var weaponUpgrade = boatData.GetUpgrade(StatType.Weapon);
         if (weaponUpgrade != null)
         {
-            int weaponLevel = GameData.GetUpgradeLevel(boatData.id, StatType.Weapon);
+            int weaponLevel = GameData.GetUpgradeLevel(instanceId, StatType.Weapon);
             weaponLevelText.text = $"Level: {weaponLevel}";
-            coinCostWeapon.text = $"{GameData.GetUpgradeCost(boatData, StatType.Weapon)}";
-            BindUpgrade(upgrateWeaponButton, boatData, StatType.Weapon);
+            coinCostWeapon.text = $"{GameData.GetUpgradeCost(boatData, instanceId, StatType.Weapon)}";
+            BindUpgrade(upgrateWeaponButton, boatData, instanceId, StatType.Weapon);
             upgrateWeaponButton.interactable = weaponLevel < weaponUpgrade.maxLevel;
         }
         // Setup armor upgrade UI
         var armorUpgrade = boatData.GetUpgrade(StatType.Armor);
         if (armorUpgrade != null)
         {
-            int armorLevel = GameData.GetUpgradeLevel(boatData.id, StatType.Armor);
+            int armorLevel = GameData.GetUpgradeLevel(instanceId, StatType.Armor);
             amorLevelText.text = $"Level: {armorLevel}";
-            coinCostAmor.text = $"{GameData.GetUpgradeCost(boatData, StatType.Armor)}";
-            BindUpgrade(upgrateAmorButton, boatData, StatType.Armor);
+            coinCostAmor.text = $"{GameData.GetUpgradeCost(boatData, instanceId, StatType.Armor)}";
+            BindUpgrade(upgrateAmorButton, boatData, instanceId, StatType.Armor);
             upgrateAmorButton.interactable = armorLevel < armorUpgrade.maxLevel;
         }
         // Setup critical upgrade UI
         var criticalUpgrade = boatData.GetUpgrade(StatType.Critical);
         if (criticalUpgrade != null)
         {
-            int criticalLevel = GameData.GetUpgradeLevel(boatData.id, StatType.Critical);
-            float critChance = GameData.GetCritChance(boatData);
+            int criticalLevel = GameData.GetUpgradeLevel(instanceId, StatType.Critical);
+            float critChance = GameData.GetCritChance(boatData, instanceId);
             criticalStatus.text = $"{critChance:0.#}%";   // % thực tế, không phải cấp
-            coinCostCritical.text = $"{GameData.GetUpgradeCost(boatData, StatType.Critical)}";
-            BindUpgrade(criticalButton, boatData, StatType.Critical);
+            coinCostCritical.text = $"{GameData.GetUpgradeCost(boatData, instanceId, StatType.Critical)}";
+            BindUpgrade(criticalButton, boatData, instanceId, StatType.Critical);
             criticalButton.interactable = criticalLevel < criticalUpgrade.maxLevel && critChance < GameData.CritChanceCap;
         }
         // Setup evasion upgrade UI
         var evasionUpgrade = boatData.GetUpgrade(StatType.Evasion);
         if (evasionUpgrade != null)
         {
-            int evasionLevel = GameData.GetUpgradeLevel(boatData.id, StatType.Evasion);
-            float evasion = GameData.GetEvasion(boatData);
+            int evasionLevel = GameData.GetUpgradeLevel(instanceId, StatType.Evasion);
+            float evasion = GameData.GetEvasion(boatData, instanceId);
             evasionStatus.text = $"{evasion:0.#}%";
-            coinCostEvasion.text = $"{GameData.GetUpgradeCost(boatData, StatType.Evasion)}";
-            BindUpgrade(evasionButton, boatData, StatType.Evasion);
+            coinCostEvasion.text = $"{GameData.GetUpgradeCost(boatData, instanceId, StatType.Evasion)}";
+            BindUpgrade(evasionButton, boatData, instanceId, StatType.Evasion);
             evasionButton.interactable = evasionLevel < evasionUpgrade.maxLevel && evasion < GameData.EvasionCap;
         }
     }
 
-    private void BindUpgrade(Button button, BoatData boatData, StatType stat)
+private void BindUpgrade(Button button, BoatData boatData, string instanceId, StatType stat)
     {
         button.onClick.RemoveAllListeners();
         button.onClick.AddListener(() =>
         {
-            if (GameData.TryUpgrade(boatData, stat))
-                SetupUI(boatData);
+            if (GameData.TryUpgrade(boatData, instanceId, stat))
+                SetupUI(boatData, instanceId);
         });
     }
 }
