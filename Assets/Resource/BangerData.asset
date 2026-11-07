@@ -22,7 +22,7 @@ MonoBehaviour:
   - prefab: {fileID: 1700838897997021517, guid: 95339c24782d0bd4e9904fa2846c3b89, type: 3}
     damage: 10
     maxHealth: 100
-    moveSpeed: 16
+    moveSpeed: 20
     rotateSpeed: 110
   upgrades:
   - stat: 4
@@ -46,5 +46,7 @@ MonoBehaviour:
   damageLayers:
     serializedVersion: 2
     m_Bits: 64
-  explosionPrefab: {fileID: 0}
+  explosionPrefab: {fileID: 3009578875577290421, guid: b26c91824d6894b45bdbf7b6fbb13f69, type: 3}
   chargeSpeedMultiplier: 1
+  chargeAccelerationMultiplier: 15
+  chargeSharpTurnSpeedFactor: 1

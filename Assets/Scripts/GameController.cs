@@ -24,7 +24,7 @@ public class GameController : MonoBehaviour
     [SerializeField] private TimingBar timingBar;
     [SerializeField] private Button fightBtn;
     [SerializeField] private Image imageBuff;
-
+    [SerializeField] private GameObject botUI;
     public bool IsBattleStarted;
     public static event Action OnBattleStarted;
     [Header("Spawn Slots")]
@@ -35,14 +35,12 @@ public class GameController : MonoBehaviour
     [Header("Economy")]
     [SerializeField] private int startingGold = 500;
     [Header("Boats")]
-    [Tooltip("Tất cả BoatData người chơi có thể mua - dùng để tìm lại tàu đã lưu theo id")]
     [SerializeField] private BoatData[] boatCatalog;
     [Header("Round")]
     [SerializeField] private RoundUI roundUI;
     [SerializeField] private Button replayBtn;
     [SerializeField] private float roundCheckInterval = 0.5f;
 
-    /// <summary>true = thắng round (hết tàu địch), false = thua (hết tàu ta).</summary>
     public static event Action<bool> OnRoundEnded;
 
     private bool roundOver;
@@ -55,22 +53,21 @@ public class GameController : MonoBehaviour
             Destroy(gameObject);
             return;
         }
-
+            
         Instance = this;
         GoldBuff.Reset();
         GameData.Load(startingGold);
         fightBtn.onClick.AddListener(OnFightClicked);
-        replayBtn.onClick.AddListener(Replay);
-        replayBtn.gameObject.SetActive(false);
+        replayBtn.onClick.AddListener(LoadScene);
     }
 
     private void Start()
     {
-        // Chưa có battle (lần đầu, hoặc battle trước đã xong): mở battle mới, số round = số ô trên UI
         if (!GameData.IsBattleActive)
             GameData.StartNewBattle(roundUI != null ? roundUI.RoundCount : 1);
 
         if (roundUI != null) roundUI.Refresh();
+        popupManager.Init();
         SpawnOwnedBoats();
     }
 
@@ -91,8 +88,8 @@ public class GameController : MonoBehaviour
             if (boat.IsAlly) allies++; else enemies++;
         }
 
-        if (enemies == 0) EndRound(true);
-        else if (allies == 0) EndRound(false);
+        if (enemies == 0) { EndRound(true); PopupManager.WinPopup.Show(); }
+        else if (allies == 0) { EndRound(false); PopupManager.LosePopup.Show(); }
     }
 
     // Thắng: sang round sau (round cuối thì xong battle). Thua: đánh lại round này.
@@ -116,15 +113,16 @@ public class GameController : MonoBehaviour
         OnRoundEnded?.Invoke(won);
     }
 
-    // Load lại scene: tàu đã chốt được spawn lại, round lấy từ GameData
-    public void Replay()
+    public void LoadScene()
     {
         GameData.SaveIfDirty();
         DOTween.KillAll();
-        UnityEngine.SceneManagement.SceneManager.LoadScene(gameObject.scene.buildIndex);
+        UnityEngine.SceneManagement.SceneManager.LoadScene(
+            "Battle",
+            UnityEngine.SceneManagement.LoadSceneMode.Single
+        );
     }
 
-    // Đầu mỗi round: đặt lại toàn bộ tàu người chơi đã sở hữu vào ô spawn của chúng
     public void SpawnOwnedBoats()
     {
         foreach (var slot in spawnSlots)
@@ -133,11 +131,10 @@ public class GameController : MonoBehaviour
         foreach (var owned in GameData.GetOwnedBoats())
         {
             BoatData data = Array.Find(boatCatalog, d => d != null && d.id == owned.BoatId);
-            // Ô cũ không dùng được (đã có tàu / không còn) thì lấy ô trống đầu tiên
             int index = IsEmptySlot(owned.Slot) ? owned.Slot : FindEmptySlotIndex();
 
             if (data == null || index < 0 || spawnSlots[index].SpawnBoat(data, owned.InstanceId) == null)
-                Debug.LogWarning($"GameController: không spawn được tàu '{owned.InstanceId}' ({owned.BoatId}).");
+                Debug.LogError($"GameController: không spawn được tàu '{owned.InstanceId}' ({owned.BoatId}).");
         }
     }
 
@@ -192,7 +189,7 @@ public class GameController : MonoBehaviour
         state = GameState.Battle;
         GameData.CommitPurchases();   // tàu/nâng cấp đã mua giờ được dùng: chốt và lưu
         OnBattleStarted?.Invoke();
-        timingBar.gameObject.SetActive(false);
+        botUI.SetActive(false);
         cameraController.ChangeCameraByState();
     }
     private void ShowImageBuff()

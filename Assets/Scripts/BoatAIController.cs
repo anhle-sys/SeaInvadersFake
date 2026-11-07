@@ -150,6 +150,7 @@ public void Initialize(BoatData boatData, string instanceId = null)
         {
             combatTarget = null;
             movement.SetSpeedMultiplier(1f);
+            combat.OnExitCombat();
         }
     }
 

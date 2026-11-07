@@ -2,13 +2,6 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// Dữ liệu người chơi. Có 2 lớp:
-/// - <see cref="saved"/>: bản đã chốt, đúng là thứ ghi xuống đĩa (tàu sở hữu, nâng cấp, cấp tàu, tiến trình battle).
-///   Chỉ đổi khi vào trận (CommitPurchases), khi Load, hoặc khi tiến trình battle thay đổi.
-/// - boats / upgradeLevels: trạng thái đang chơi, gồm cả phần mua trong round chưa chốt.
-/// Thoát game trước khi vào trận thì phần chưa chốt không được lưu và vàng đã trả được hoàn lại.
-/// </summary>
 public static class GameData
 {
     public const float CritChanceCap = 75f; // %

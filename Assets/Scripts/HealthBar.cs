@@ -87,7 +87,6 @@ public class HealthBar : MonoBehaviour
     {
         if (target == null) return;
 
-        // Mục tiêu bị Destroy mà không báo OnDied: interface != null vẫn true, phải check kiểu Unity
         if (target is Object obj && obj == null)
         {
             Release();

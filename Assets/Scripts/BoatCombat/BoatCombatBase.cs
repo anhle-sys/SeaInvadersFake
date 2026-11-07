@@ -10,6 +10,9 @@ public abstract class BoatCombatBase : MonoBehaviour
 
     public virtual void OnEnterCombat(Transform enemy) { }
 
+    // Gọi khi tàu thoát khỏi trạng thái combat (hết địch) để trả lại các thiết lập di chuyển riêng
+    public virtual void OnExitCombat() { }
+
     public abstract void Tick(Transform enemy);
 
     protected Vector3 GetOrbitDirection(

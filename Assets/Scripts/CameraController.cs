@@ -118,6 +118,7 @@ public class CameraController : MonoBehaviour
             .SetEase(Ease.InOutSine)
             .SetLink(cam.gameObject);
     }
+
     private void SetCameraFOV(float targetFOV)
     {
         if (cam == null) return;

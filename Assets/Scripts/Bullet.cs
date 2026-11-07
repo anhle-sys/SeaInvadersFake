@@ -13,18 +13,13 @@ public class Bullet : MonoBehaviour
     private float damage;
     private float timer;
 
-    private void Awake()
-    {
-        rb = GetComponent<Rigidbody>();
-        rb.useGravity = false; // đạn bay thẳng; trọng lực làm đạn rơi trước khi tới mục tiêu
-    }
-
     public void Init(BoatTeam team, Vector3 targetPosition, float damageAmount) =>
         Init(team, targetPosition, Vector3.zero, damageAmount);
 
-    /// <summary>Bắn đón đầu: nhắm vào điểm mà mục tiêu (đang chạy với targetVelocity) sẽ tới khi đạn bay tới.</summary>
     public void Init(BoatTeam team, Vector3 targetPosition, Vector3 targetVelocity, float damageAmount)
     {
+        rb = GetComponent<Rigidbody>();
+        rb.useGravity = false;
         ownerTeam = team;
         damage = damageAmount;
         timer = 0f;
@@ -43,7 +38,6 @@ public class Bullet : MonoBehaviour
         }
     }
 
-    /// <summary>Điểm chặn trên mặt phẳng ngang cho đạn bay thẳng với tốc độ projectileSpeed.</summary>
     public static Vector3 PredictIntercept(Vector3 shooter, Vector3 target, Vector3 targetVelocity, float projectileSpeed)
     {
         Vector3 d = target - shooter; d.y = 0f;
@@ -51,7 +45,6 @@ public class Bullet : MonoBehaviour
         if (v.sqrMagnitude < 0.0001f || projectileSpeed <= 0.01f)
             return target;
 
-        // |d + v t| = s t  ->  (v·v - s²) t² + 2 (d·v) t + d·d = 0
         float a = v.sqrMagnitude - projectileSpeed * projectileSpeed;
         float b = 2f * Vector3.Dot(d, v);
         float c = d.sqrMagnitude;
@@ -112,7 +105,6 @@ public class Bullet : MonoBehaviour
         rb.linearVelocity = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
 
-        // Trả về pool thay vì Destroy (đạn được tạo bằng SimplePool2.Spawn)
         SimplePool2.Despawn(gameObject);
     }
 }

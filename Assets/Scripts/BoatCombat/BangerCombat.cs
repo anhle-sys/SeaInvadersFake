@@ -1,11 +1,13 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class BangerCombat : BoatCombatBase
+public class BangerCombat : BoatCombatBase, IBoatMovementModifier
 {
     private BangerData data;
     private BoatStats stats;
     private bool exploded;
+
+    private bool charging;   // đang lao vào địch: bỏ qua né đồng đội
 
     public override float CombatSpeedMultiplier =>
         data != null ? data.chargeSpeedMultiplier : 1f;
@@ -16,6 +18,29 @@ public class BangerCombat : BoatCombatBase
         stats = boatStats;
         if (data == null)
             Debug.LogError($"{name}: BangerCombat cần BangerData!");
+        else if (movement != null)
+            movement.Modifier = this;
+    }
+
+    public override void OnEnterCombat(Transform enemy) => charging = true;
+
+    public override void OnExitCombat() => charging = false;
+
+    public Vector3 ModifyAvoidance(in BoatMovementContext ctx, Vector3 avoidance)
+        => charging ? Vector3.zero : avoidance;
+
+    public void ModifySpeedTuning(in BoatMovementContext ctx, ref BoatSpeedTuning tuning)
+    {
+        if (!charging || data == null)
+            return;
+
+        if (data.chargeInstantSpeed)
+        {
+            tuning.acceleration = 1000000f;
+            tuning.speedResponse = 1f / Mathf.Max(ctx.dt, 0.0001f);
+        }
+
+        tuning.sharpTurnSpeedFactor = Mathf.Max(tuning.sharpTurnSpeedFactor, data.chargeSharpTurnSpeedFactor);
     }
 
     public override void Tick(Transform enemy)
@@ -35,9 +60,6 @@ public class BangerCombat : BoatCombatBase
         movement.Steer(to);
     }
 
-    // Hai tàu đều có collider vật lý nên đẩy nhau ra: khoảng cách tâm có thể không bao giờ
-    // xuống dưới triggerDistance. Chạm vào tàu địch là nổ luôn.
-    // Lưu ý: chỉ nhận được callback khi script nằm cùng GameObject với Rigidbody.
     private void OnCollisionEnter(Collision collision) => TryExplodeOnContact(collision);
     private void OnCollisionStay(Collision collision) => TryExplodeOnContact(collision);
 
