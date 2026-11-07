@@ -37,6 +37,16 @@ public class GameController : MonoBehaviour
     [Header("Boats")]
     [Tooltip("Tất cả BoatData người chơi có thể mua - dùng để tìm lại tàu đã lưu theo id")]
     [SerializeField] private BoatData[] boatCatalog;
+    [Header("Round")]
+    [SerializeField] private RoundUI roundUI;
+    [SerializeField] private Button replayBtn;
+    [SerializeField] private float roundCheckInterval = 0.5f;
+
+    /// <summary>true = thắng round (hết tàu địch), false = thua (hết tàu ta).</summary>
+    public static event Action<bool> OnRoundEnded;
+
+    private bool roundOver;
+    private float roundCheckTimer;
 
     private void Awake()
     {
@@ -50,9 +60,69 @@ public class GameController : MonoBehaviour
         GoldBuff.Reset();
         GameData.Load(startingGold);
         fightBtn.onClick.AddListener(OnFightClicked);
+        replayBtn.onClick.AddListener(Replay);
+        replayBtn.gameObject.SetActive(false);
     }
 
-    private void Start() => SpawnOwnedBoats();
+    private void Start()
+    {
+        // Chưa có battle (lần đầu, hoặc battle trước đã xong): mở battle mới, số round = số ô trên UI
+        if (!GameData.IsBattleActive)
+            GameData.StartNewBattle(roundUI != null ? roundUI.RoundCount : 1);
+
+        if (roundUI != null) roundUI.Refresh();
+        SpawnOwnedBoats();
+    }
+
+    private void Update()
+    {
+        if (!IsBattleStarted || roundOver)
+            return;
+
+        roundCheckTimer -= Time.deltaTime;
+        if (roundCheckTimer > 0f)
+            return;
+        roundCheckTimer = roundCheckInterval;
+
+        int allies = 0, enemies = 0;
+        foreach (var boat in FindObjectsByType<BoatHealth>(FindObjectsSortMode.None))
+        {
+            if (boat.IsDead) continue;
+            if (boat.IsAlly) allies++; else enemies++;
+        }
+
+        if (enemies == 0) EndRound(true);
+        else if (allies == 0) EndRound(false);
+    }
+
+    // Thắng: sang round sau (round cuối thì xong battle). Thua: đánh lại round này.
+    private void EndRound(bool won)
+    {
+        roundOver = true;
+        state = GameState.GameOver;
+
+        if (won)
+            GameData.CompleteCurrentRound();   // có Save bên trong
+        else
+            GameData.SaveIfDirty();
+
+        if (roundUI != null) roundUI.Refresh();
+
+        var label = replayBtn.GetComponentInChildren<TMPro.TMP_Text>(true);
+        if (label != null)
+            label.text = !won ? "Replay" : GameData.IsBattleActive ? "Next Round" : "New Battle";
+        replayBtn.gameObject.SetActive(true);
+
+        OnRoundEnded?.Invoke(won);
+    }
+
+    // Load lại scene: tàu đã chốt được spawn lại, round lấy từ GameData
+    public void Replay()
+    {
+        GameData.SaveIfDirty();
+        DOTween.KillAll();
+        UnityEngine.SceneManagement.SceneManager.LoadScene(gameObject.scene.buildIndex);
+    }
 
     // Đầu mỗi round: đặt lại toàn bộ tàu người chơi đã sở hữu vào ô spawn của chúng
     public void SpawnOwnedBoats()
@@ -101,6 +171,7 @@ public class GameController : MonoBehaviour
     {
         Instance = null;
         OnBattleStarted = null;
+        OnRoundEnded = null;
     }
 
     private void OnFightClicked()
