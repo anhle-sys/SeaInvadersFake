@@ -13,31 +13,24 @@ public class CameraController : MonoBehaviour
     [SerializeField] private float moveDuration = 0.8f;
 
     [Header("Focus mũi tàu (popup nâng cấp)")]
-    [Tooltip("Hướng đặt camera so với tàu: phía trước mũi (forward), lệch mạn phải (side, âm = mạn trái), trên cao (height). " +
-             "Chỉ dùng làm hướng, khoảng cách được tự tính để tàu vừa khung hình.")]
     [SerializeField] private float focusDistance = 5.5f;
     [SerializeField] private float focusHeight = 2.6f;
     [SerializeField] private float focusSide = 2.2f;
-    [Tooltip("Bề ngang thế giới hiện trong khung = chiều dài tàu × hệ số này. Nhỏ = zoom sát hơn")]
     [SerializeField] private float framePadding = 1.25f;
-    [Tooltip("Phần chiều cao màn hình còn trống phía trên popup (0..1)")]
     [Range(0.3f, 1f)] [SerializeField] private float freeScreenHeight = 0.65f;
-    [Tooltip("Điểm nhìn: 0 = tâm tàu, 1 = mũi tàu")]
     [Range(0f, 1f)] [SerializeField] private float lookAtBowRatio = 0.6f;
     [SerializeField] private float lookHeight = 0.4f;
-    [Tooltip("Vị trí dọc trên màn hình của điểm nhìn (0 = đáy, 1 = đỉnh). > 0.5 để tàu nằm trên popup ở nửa dưới")]
     [Range(0.2f, 0.9f)] [SerializeField] private float focusViewportY = 0.68f;
     [SerializeField] private float focusDuration = 0.6f;
-
+    [Header("Camera FOV")]
+    [SerializeField] private float idleFOV = 33f;
+    [SerializeField] private float battleFOV = 41f;
+    [SerializeField] private float upgradeFOV = 33f;
+    [SerializeField] private float fovDuration = 0.8f;
     private Tween cameraMoveTween;
     private Tween cameraRotateTween;
     private Tween shakeTween;
-
-    private void Awake()
-    {
-        if (cam == null) cam = GetComponent<Camera>();
-        if (cam == null) cam = Camera.main;
-    }
+    private Tween cameraFOVTween;
 
     public void ChangeCameraByState()
     {
@@ -45,14 +38,17 @@ public class CameraController : MonoBehaviour
         {
             case GameState.Idle:
                 SetCameraPosition(idleCamera);
+                SetCameraFOV(idleFOV);
                 break;
 
             case GameState.Battle:
                 SetCameraPosition(battleCamera);
+                SetCameraFOV(battleFOV);
                 break;
 
             case GameState.Upgrade:
                 SetCameraPosition(upgrateCamera);
+                SetCameraFOV(upgradeFOV);
                 break;
 
             case GameState.GameOver:
@@ -66,7 +62,6 @@ public class CameraController : MonoBehaviour
         MoveTo(target.position, target.rotation, moveDuration);
     }
 
-    /// <summary>Đưa camera nhìn chéo vào mũi tàu (dùng khi mở popup nâng cấp).</summary>
     public void FocusOnBoat(Transform boat)
     {
         if (boat == null || cam == null) return;
@@ -78,8 +73,6 @@ public class CameraController : MonoBehaviour
         Vector3 dir = f.Forward * focusDistance + f.Right * focusSide + Vector3.up * focusHeight;
         dir = dir.sqrMagnitude > 0.0001f ? dir.normalized : (f.Forward + Vector3.up).normalized;
 
-        // Khoảng cách để tàu vừa khung: lấy chiều hẹp hơn giữa bề ngang màn hình (màn dọc rất hẹp)
-        // và phần chiều cao còn trống phía trên popup
         float vHalf = cam.fieldOfView * 0.5f * Mathf.Deg2Rad;
         float hHalf = Mathf.Atan(Mathf.Tan(vHalf) * cam.aspect);
         float limitHalf = Mathf.Min(hHalf, Mathf.Atan(Mathf.Tan(vHalf) * freeScreenHeight));
@@ -95,12 +88,10 @@ public class CameraController : MonoBehaviour
         MoveTo(pos, rot, focusDuration);
     }
 
-    /// <summary>Rung camera ngắn (cú đập nâng cấp). Không làm lệch vị trí cuối của camera.</summary>
     public void Shake(float duration, float strength)
     {
         if (cam == null || strength <= 0f) return;
 
-        // Đang bay tới vị trí focus thì cho tới nơi luôn, tránh 2 tween cùng ghi position
         if (cameraMoveTween != null && cameraMoveTween.IsActive() && cameraMoveTween.IsPlaying())
         {
             cameraMoveTween.Complete();
@@ -124,6 +115,16 @@ public class CameraController : MonoBehaviour
             .SetLink(cam.gameObject);
 
         cameraRotateTween = cam.transform.DORotateQuaternion(rotation, duration)
+            .SetEase(Ease.InOutSine)
+            .SetLink(cam.gameObject);
+    }
+    private void SetCameraFOV(float targetFOV)
+    {
+        if (cam == null) return;
+
+        cameraFOVTween?.Kill();
+
+        cameraFOVTween = cam.DOFieldOfView(targetFOV, fovDuration)
             .SetEase(Ease.InOutSine)
             .SetLink(cam.gameObject);
     }
