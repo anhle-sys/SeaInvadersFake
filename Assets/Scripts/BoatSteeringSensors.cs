@@ -9,6 +9,7 @@ public class BoatSteeringSensors
 {
     private const float AvoidanceInterval = 0.1f;
     private const float ObstacleLookAhead = 1.2f;   // nhìn trước bao nhiêu giây theo tốc độ hiện tại
+    private const float BlockedTolerance = 0.3f;    // khoảng trống còn lại dưới mức này coi như đã bị chặn
 
     private readonly Rigidbody rb;
     private readonly Transform transform;
@@ -22,6 +23,12 @@ public class BoatSteeringSensors
 
     /// <summary>Hướng né tàu đồng đội (độ dài 0..1), cập nhật định kỳ.</summary>
     public Vector3 Avoidance { get; private set; }
+
+    /// <summary>Mũi tàu đã sát vật cản phía trước (không còn khoảng trống để chạy tiếp).</summary>
+    public bool BlockedAhead { get; private set; }
+
+    /// <summary>Khoảng cách từ tâm thân tàu tới vật cản gần nhất phía trước (MaxValue nếu không có).</summary>
+    public float ObstacleDistance { get; private set; } = float.MaxValue;
 
     public BoatSteeringSensors(Rigidbody rb)
     {
@@ -91,6 +98,8 @@ public class BoatSteeringSensors
     public float SenseObstacle(BoatHandlingProfile p, float speed, float brakeDecel, out Vector3 steer)
     {
         steer = Vector3.zero;
+        BlockedAhead = false;
+        ObstacleDistance = float.MaxValue;
         if (p.obstacleMask.value == 0 || hull == null)
             return float.MaxValue;
 
@@ -119,6 +128,8 @@ public class BoatSteeringSensors
             return float.MaxValue;
 
         float free = Mathf.Max(nearest - halfLength - p.obstacleMargin, 0f);
+        ObstacleDistance = nearest;
+        BlockedAhead = free <= BlockedTolerance;
         float limit = Mathf.Sqrt(2f * brakeDecel * 0.8f * free);
 
         normal.y = 0f;

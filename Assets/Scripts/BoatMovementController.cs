@@ -9,6 +9,14 @@ public class BoatMovementController : MonoBehaviour
     private const float SharpTurnStartAngle = 20f;    // từ góc lệch này bắt đầu giảm tốc khi cua
     private const float SharpTurnFullAngle = 120f;    // góc lệch giảm tốc nhiều nhất
     private const float MinArrivalFactor = 0.15f;
+    private const float BlockedMaxSpeed = 0.5f;       // tốc độ dưới mức này mà bị chặn -> coi như đã tới đích
+    private const float BlockedMaxAngle = 45f;        // đích phải nằm trong góc này phía trước mũi tàu
+    // Kẹt (vd: bị tàu khác ép, đối đầu nhau): muốn chạy mà không nhích được và đang phải bẻ lái nhiều
+    private const float StallSpeed = 0.3f;            // tốc độ dọc thân dưới mức này coi như đứng yên
+    private const float StallAngle = 30f;             // chỉ coi là kẹt khi hướng cần đi lệch quá góc này
+    private const float StallTime = 0.4f;             // kẹt liên tục bao lâu thì lùi ra
+    private const float ReverseTime = 0.7f;           // thời gian lùi
+    private const float ReverseSpeedRatio = 0.2f;     // tốc độ lùi = moveSpeed × hệ số này
 
     [Tooltip("Thông số cảm giác lái. Tạo mới bằng Create > Boats > Handling Profile")]
     [SerializeField] private BoatHandlingProfile profile;
@@ -33,8 +41,10 @@ public class BoatMovementController : MonoBehaviour
     private float referenceMass = 1f;
     private float radiusScale = 1f;
     private float rotScale = 1f;
+    private float stallTimer;
+    private float reverseTimer;       // > 0: đang lùi để thoát kẹt
 
-    public bool IsMoving => hasInput || currentSpeed > 0.1f;
+    public bool IsMoving => hasInput || Mathf.Abs(currentSpeed) > 0.1f;
     public float CurrentSpeed => currentSpeed;
     public float Acceleration => lastAcceleration;
     public float SpeedRatio => Mathf.Clamp01(currentSpeed / Mathf.Max(moveSpeed * speedMultiplier, 0.01f));
@@ -97,7 +107,9 @@ public class BoatMovementController : MonoBehaviour
         to.y = 0f;
         float distance = to.magnitude;
 
-        if (distance <= stoppingDistance)
+        // Đích nằm sau vật cản (vd: trụ đứng trên đảo đá): tàu đã sát bờ và không thể tới gần hơn
+        // -> coi như đã tới, thay vì ép vào đá và kẹt mãi ở trạng thái "đang di chuyển"
+        if (distance <= stoppingDistance || IsBlockedBefore(to, distance))
         {
             Stop();
             return true;
@@ -113,6 +125,18 @@ public class BoatMovementController : MonoBehaviour
 
     public void Stop() => hasInput = false;
 
+    private bool IsBlockedBefore(Vector3 toTarget, float distance)
+    {
+        if (sensors == null || !sensors.BlockedAhead || currentSpeed > BlockedMaxSpeed)
+            return false;
+
+        // Vật cản phải nằm giữa tàu và đích, và mũi tàu đang hướng về đích
+        Vector3 forward = transform.forward;
+        forward.y = 0f;
+        return sensors.ObstacleDistance < distance
+            && Vector3.Angle(forward, toTarget) <= BlockedMaxAngle;
+    }
+
     public void ResetMovement()
     {
         hasInput = false;
@@ -125,6 +149,8 @@ public class BoatMovementController : MonoBehaviour
         lastAcceleration = 0f;
         hasPrevHeading = false;
         headingRate = 0f;
+        stallTimer = 0f;
+        reverseTimer = 0f;
 
         if (rb == null)
             rb = GetComponent<Rigidbody>();
@@ -175,6 +201,7 @@ public class BoatMovementController : MonoBehaviour
         }
 
         float maxSpeed = moveSpeed * speedMultiplier;
+        UpdateStall(angle, measuredForward, dt);
         UpdateSpeed(p, angle, maxSpeed, measuredForward, obstacleSpeedLimit, brakeDecel, dt);
         Quaternion newRotation = UpdateYaw(p, angle, maxSpeed, dt);
 
@@ -219,8 +246,15 @@ public class BoatMovementController : MonoBehaviour
     private void UpdateSpeed(BoatHandlingProfile p, float angle, float maxSpeed, float measuredForward,
                              float obstacleSpeedLimit, float brakeDecel, float dt)
     {
+        bool reversing = reverseTimer > 0f;
+        float reverseSpeed = moveSpeed * ReverseSpeedRatio;
+
         float targetSpeed = 0f;
-        if (hasInput)
+        if (reversing)
+        {
+            targetSpeed = -reverseSpeed;
+        }
+        else if (hasInput)
         {
             float turnT = Mathf.InverseLerp(SharpTurnStartAngle, SharpTurnFullAngle, Mathf.Abs(angle));
             targetSpeed = maxSpeed * Mathf.Lerp(1f, p.sharpTurnSpeedFactor, turnT) * arrivalFactor;
@@ -235,10 +269,31 @@ public class BoatMovementController : MonoBehaviour
 
         // Vật cản phía trước: bám theo đường phanh, nhưng không phanh gắt hơn deceleration
         newSpeed = Mathf.Min(newSpeed, Mathf.Max(obstacleSpeedLimit, measuredForward - brakeDecel * dt));
-        newSpeed = Mathf.Max(newSpeed, 0f); // không chạy lùi
+        newSpeed = Mathf.Max(newSpeed, reversing ? -reverseSpeed : 0f); // chỉ lùi khi đang thoát kẹt
 
         lastAcceleration = (newSpeed - currentSpeed) / dt;
         currentSpeed = newSpeed;
+    }
+
+    // Muốn chạy + phải bẻ lái nhiều mà thân tàu không nhích (bị tàu khác ép) -> lùi ra một đoạn
+    // ngắn để có chỗ quay đầu. Va chạm vật lý vẫn giữ nguyên, chỉ là tàu không kẹt mãi.
+    private void UpdateStall(float angle, float measuredForward, float dt)
+    {
+        if (reverseTimer > 0f)
+        {
+            reverseTimer -= dt;
+            if (!hasInput) reverseTimer = 0f;
+            return;
+        }
+
+        bool stalled = hasInput && measuredForward < StallSpeed && Mathf.Abs(angle) > StallAngle;
+        stallTimer = stalled ? stallTimer + dt : 0f;
+
+        if (stallTimer >= StallTime)
+        {
+            stallTimer = 0f;
+            reverseTimer = ReverseTime;
+        }
     }
 
     private Quaternion UpdateYaw(BoatHandlingProfile p, float angle, float maxSpeed, float dt)
@@ -248,8 +303,12 @@ public class BoatMovementController : MonoBehaviour
             : rotateSpeed * rotScale;
 
         // Khả năng bẻ lái tăng theo tốc độ: tàu không xoay tròn tại chỗ
-        float speedRatio = maxSpeed > 0.01f ? Mathf.Clamp01(currentSpeed / (maxSpeed * 0.5f)) : 0f;
+        float speedRatio = maxSpeed > 0.01f ? Mathf.Clamp01(Mathf.Abs(currentSpeed) / (maxSpeed * 0.5f)) : 0f;
         maxYawRate *= Mathf.Lerp(MinTurnAuthority, 1f, speedRatio);
+
+        // Sàn tốc độ quay: cua theo bán kính thì tốc độ quay tỉ lệ với tốc độ chạy, nên tàu bị ép
+        // đứng yên (va chạm) sẽ gần như không quay được -> vẫn cho xoay chậm tại chỗ để thoát ra
+        maxYawRate = Mathf.Max(maxYawRate, rotateSpeed * rotScale * MinTurnAuthority);
 
         float targetYawRate = hasInput
             ? Mathf.Clamp(angle * p.turnResponsiveness + headingRate * p.turnFeedForward, -maxYawRate, maxYawRate)
