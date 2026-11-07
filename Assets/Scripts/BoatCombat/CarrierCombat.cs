@@ -6,6 +6,9 @@ public class CarrierCombat : BoatCombatBase
     [Tooltip("Vị trí máy bay cất cánh (đường băng). Để trống sẽ dùng vị trí tàu.")]
     [SerializeField] private Transform launchPoint;
 
+    private const float AttackRangeRatio = 1.1f;   // trong (keepDistance × hệ số này) thì coi là đang tấn công: chạy chậm hẳn
+    private const float SlowDownRangeRatio = 1.5f; // bắt đầu giảm tốc từ (keepDistance × hệ số này)
+
     private CarrierData data;
     private BoatStats stats;
     private float launchTimer;
@@ -35,6 +38,12 @@ public class CarrierCombat : BoatCombatBase
             return;
 
         movement.Steer(GetOrbitDirection(enemy, data.keepDistance, orbitDirection, data.radiusCorrection));
+
+        // Chỉ chạy chậm khi đã vào vòng lượn quanh địch (đang tấn công); còn xa thì chạy hết tốc để áp sát.
+        // Giảm dần từ ngoài vào để không lao vọt qua vòng lượn
+        float dist = Vector3.Distance(transform.position, enemy.position);
+        float outside = Mathf.InverseLerp(data.keepDistance * AttackRangeRatio, data.keepDistance * SlowDownRangeRatio, dist);
+        movement.SetSpeedMultiplier(Mathf.Lerp(data.combatSpeedMultiplier, 1f, outside));
 
         planes.RemoveAll(p => p == null);
 

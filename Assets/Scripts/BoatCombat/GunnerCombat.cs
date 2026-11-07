@@ -15,6 +15,7 @@ public class GunnerCombat : BoatCombatBase
     private bool isPassing;
     private float passTimer;
     private const float PassFrontAngle = 60f;
+    private const float SlowDownRangeRatio = 1.3f;   // bắt đầu giảm tốc từ (attackRange × hệ số này)
 
     public override float CombatSpeedMultiplier =>
         data != null ? data.combatSpeedMultiplier : 0.4f;
@@ -78,7 +79,12 @@ public class GunnerCombat : BoatCombatBase
             TryAttack(enemy);
 
         movement.Steer(GetCombatDirection(enemy), data.turnRadius);
-        movement.SetSpeedMultiplier(data.combatSpeedMultiplier * GetTurningSpeedFactor(enemy));
+
+        // Chỉ chạy chậm khi địch đã trong tầm bắn (đang tấn công); ngoài tầm thì chạy hết tốc để áp sát.
+        // Giảm dần trong một dải ngay ngoài tầm: không lao vọt qua địch, lượn ở mép tầm không bị giật tốc
+        float dist = Vector3.Distance(transform.position, enemy.position);
+        float outside = Mathf.InverseLerp(data.attackRange, data.attackRange * SlowDownRangeRatio, dist);
+        movement.SetSpeedMultiplier(Mathf.Lerp(data.combatSpeedMultiplier * GetTurningSpeedFactor(enemy), 1f, outside));
     }
 
     private float GetTurningSpeedFactor(Transform enemy)
