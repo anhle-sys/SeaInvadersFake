@@ -30,6 +30,19 @@ public static class GameData
 
     // Có thay đổi chưa ghi xuống đĩa (vd: thưởng giết địch) -> ghi khi pause/quit, không ghi mỗi lần giết
     private static bool dirty;
+    private static int currentBattle;
+    private static int currentRound;
+    private static int totalRounds;
+    private static int completedRounds;
+    private static bool isBattleActive;
+    private static readonly List<BattleEntry> battleHistory = new();
+    public static int CurrentBattle => currentBattle;
+    public static int CurrentRound => currentRound;
+    public static int TotalRounds => totalRounds;
+    public static int CompletedRounds => completedRounds;
+    public static bool IsBattleActive => isBattleActive;
+
+    public static IReadOnlyList<BattleEntry> BattleHistory => battleHistory;
 
     // Khi tắt Domain Reload: xóa dữ liệu/subscriber cũ của lần Play trước
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -46,6 +59,63 @@ public static class GameData
         OnGoldChanged = null;
         OnNotEnoughGold = null;
         OnUpgradeChanged = null;
+    }
+
+    [Serializable]
+    public class BattleEntry
+    {
+        public int battleNumber;
+        public int totalRounds;
+        public int completedRounds;
+    }
+    public static void StartNewBattle(int rounds)
+    {
+        currentBattle++;
+        currentRound = 1;
+        totalRounds = Mathf.Max(1, rounds);
+        completedRounds = 0;
+        isBattleActive = true;
+
+        // Reset dữ liệu tạm thời của Battle trước nếu có
+        upgradeLevels.Clear();
+        pendingBoats.Clear();
+        uncommittedSpend = 0;
+
+        Save();
+
+        Debug.LogError($"Start Battle {currentBattle} - {totalRounds} Rounds");
+    }
+    public static bool CompleteCurrentRound()
+    {
+        if (!isBattleActive)
+            return false;
+
+        completedRounds++;
+
+        if (completedRounds >= totalRounds)
+        {
+            isBattleActive = false;
+
+            battleHistory.Add(new BattleEntry
+            {
+                battleNumber = currentBattle,
+                totalRounds = totalRounds,
+                completedRounds = completedRounds
+            });
+
+            Debug.LogError($"Battle {currentBattle} Completed!");
+
+            Save();
+            return true;
+        }
+
+        currentRound++;
+
+        Save();
+
+        Debug.LogError($"Battle {currentBattle} - Round {currentRound}");
+
+        return false;
     }
 
     #region Gold
@@ -298,20 +368,49 @@ public static class GameData
         public List<Entry> upgrades = new();
         public List<Entry> boats = new();
         public List<OwnedEntry> owned = new();
+
+        // Battle Progress
+        public int currentBattle;
+        public int currentRound;
+        public int totalRounds;
+        public int completedRounds;
+        public bool isBattleActive;
+
+        public List<BattleEntry> battleHistory = new();
     }
 
     public static void Save()
     {
-        // Chỉ ghi dữ liệu đã chốt: tàu/nâng cấp chưa vào trận không được lưu,
-        // nên cộng lại phần vàng đã trả cho chúng (coi như hoàn lại).
-        var s = new SaveData { gold = Gold + uncommittedSpend };
-        foreach (var kv in boatLevels) s.boats.Add(new Entry { key = kv.Key, level = kv.Value });
-        foreach (var kv in committedUpgrades) s.upgrades.Add(new Entry { key = kv.Key, level = kv.Value });
+        var s = new SaveData
+        {
+            gold = Gold + uncommittedSpend,
+
+            currentBattle = currentBattle,
+            currentRound = currentRound,
+            totalRounds = totalRounds,
+            completedRounds = completedRounds,
+            isBattleActive = isBattleActive
+        };
+
+        foreach (var kv in boatLevels)
+            s.boats.Add(new Entry { key = kv.Key, level = kv.Value });
+
+        foreach (var kv in committedUpgrades)
+            s.upgrades.Add(new Entry { key = kv.Key, level = kv.Value });
+
         foreach (var e in ownedBoats)
-            s.owned.Add(new OwnedEntry { instanceId = e.instanceId, boatId = e.boatId, slot = e.slot });
+            s.owned.Add(new OwnedEntry
+            {
+                instanceId = e.instanceId,
+                boatId = e.boatId,
+                slot = e.slot
+            });
+
+        s.battleHistory.AddRange(battleHistory);
 
         PlayerPrefs.SetString(SaveKey, JsonUtility.ToJson(s));
         PlayerPrefs.Save();
+
         dirty = false;
     }
 
@@ -377,6 +476,16 @@ public static class GameData
             }
 
         OnGoldChanged?.Invoke(Gold);
+        currentBattle = s.currentBattle;
+        currentRound = s.currentRound;
+        totalRounds = s.totalRounds;
+        completedRounds = s.completedRounds;
+        isBattleActive = s.isBattleActive;
+
+        battleHistory.Clear();
+
+        if (s.battleHistory != null)
+            battleHistory.AddRange(s.battleHistory);
     }
 
     public static void ResetAll()
@@ -389,6 +498,12 @@ public static class GameData
         boatLevels.Clear();
         ownedBoats.Clear();
         pendingBoats.Clear();
+        currentBattle = 0;
+        currentRound = 0;
+        totalRounds = 0;
+        completedRounds = 0;
+        isBattleActive = false;
+        battleHistory.Clear();
         PlayerPrefs.DeleteKey(SaveKey);
         OnGoldChanged?.Invoke(Gold);
     }

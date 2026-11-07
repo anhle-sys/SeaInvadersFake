@@ -1,10 +1,5 @@
 using UnityEngine;
 
-/// <summary>
-/// Cảm biến lái của tàu (class thường, do BoatMovementController sở hữu):
-/// - Né tàu cùng phe ở gần (quét mỗi AvoidanceInterval giây).
-/// - Quét phía trước mũi tàu để phanh / né đảo, đá.
-/// </summary>
 public class BoatSteeringSensors
 {
     private const float AvoidanceInterval = 0.1f;
@@ -21,14 +16,11 @@ public class BoatSteeringSensors
     private readonly RaycastHit[] obstacleHits = new RaycastHit[8];
     private float avoidanceTimer;
 
-    /// <summary>Hướng né tàu đồng đội (độ dài 0..1), cập nhật định kỳ.</summary>
-    public Vector3 Avoidance { get; private set; }
+    public Vector3 Avoidance { get; private set; } //Hướng né tàu đồng đội
 
-    /// <summary>Mũi tàu đã sát vật cản phía trước (không còn khoảng trống để chạy tiếp).</summary>
-    public bool BlockedAhead { get; private set; }
+    public bool BlockedAhead { get; private set; } //Mũi tàu đã sát vật cản phía trước
 
-    /// <summary>Khoảng cách từ tâm thân tàu tới vật cản gần nhất phía trước (MaxValue nếu không có).</summary>
-    public float ObstacleDistance { get; private set; } = float.MaxValue;
+    public float ObstacleDistance { get; private set; } = float.MaxValue; //Khoảng cách từ tâm thân tàu tới vật cản gần nhất phía trước
 
     public BoatSteeringSensors(Rigidbody rb)
     {
@@ -90,11 +82,6 @@ public class BoatSteeringSensors
         Avoidance = Vector3.ClampMagnitude(sum, 1f);
     }
 
-    /// <summary>
-    /// Quét hộp bằng chiều ngang thân tàu về phía trước. Trả về tốc độ tối đa để kịp dừng trước
-    /// vật cản (phanh đều theo brakeDecel), và hướng lái né khi vật cản ở chéo phía trước.
-    /// Vật cản chính diện thì chỉ phanh, không lái, để tàu không bị lật qua lật lại.
-    /// </summary>
     public float SenseObstacle(BoatHandlingProfile p, float speed, float brakeDecel, out Vector3 steer)
     {
         steer = Vector3.zero;
