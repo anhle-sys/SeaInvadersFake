@@ -36,6 +36,22 @@ public class SpawnSlot : MonoBehaviour
         return CurrentObject;
     }
 
+    // Spawn tàu người chơi theo cấp tàu hiện tại và gán id riêng (dùng cho mua tàu và spawn lại đầu round)
+    public GameObject SpawnBoat(BoatData data, string instanceId)
+    {
+        GameObject boat = data != null ? Spawn(data.GetPrefab(GameData.GetBoatLevel(data.id))) : null;
+        if (boat == null)
+            return null;
+
+        if (plane != null)
+            plane.SetActive(false);
+
+        if (boat.TryGetComponent(out BoatAIController ai))
+            ai.Initialize(data, instanceId);
+
+        return boat;
+    }
+
     public void Clear()
     {
         if (CurrentObject != null)

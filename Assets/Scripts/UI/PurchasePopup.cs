@@ -38,51 +38,23 @@ public class PurchasePopup : MonoBehaviour
     }
     public void Purchase(BoatData data)
     {
-        if (data == null || GameController.Instance.IsBattleStarted)
+        GameController gc = GameController.Instance;
+        if (data == null || gc.IsBattleStarted)
             return;
 
-        int level = GameData.GetBoatLevel(data.id);
-        GameObject prefab = data.GetPrefab(level);
-        if (prefab == null)
+        int slotIndex = gc.FindEmptySlotIndex();
+        if (slotIndex < 0 || !GameData.SpendGoldForPurchase(data.cost))
             return;
 
-        SpawnSlot emptySlot = GetFirstEmptySlot();
-        if (emptySlot == null)
-            return;
-
-        if (!GameData.SpendGoldForPurchase(data.cost))
-            return;
-
-        GameObject boat = emptySlot.Spawn(prefab);
-        if (boat == null)
+        // Mỗi lần mua một id riêng -> nâng cấp của tàu này không dùng chung với tàu cùng loại khác
+        string instanceId = GameData.NewBoatInstanceId(data.id);
+        if (gc.SpawnSlots[slotIndex].SpawnBoat(data, instanceId) == null)
         {
             GameData.RefundPurchase(data.cost);
             return;
         }
 
-        if (emptySlot.plane != null)
-            emptySlot.plane.SetActive(false);
-
-        // Mỗi lần mua một id riêng -> nâng cấp của tàu này không dùng chung với tàu cùng loại khác
-        string instanceId = GameData.NewBoatInstanceId(data.id);
-
-        BoatAIController ai = boat.GetComponent<BoatAIController>();
-        if (ai != null)
-            ai.Initialize(data, instanceId);
-
-        // Ghi nhận tàu đã mua (chưa chốt): vào trận sẽ được lưu và spawn lại ở các round sau
-        int slotIndex = System.Array.IndexOf(GameController.Instance.SpawnSlots, emptySlot);
+        // Chưa chốt: vào trận sẽ được lưu và spawn lại ở các round sau
         GameData.AddPendingBoat(instanceId, data.id, slotIndex);
-    }
-
-    private SpawnSlot GetFirstEmptySlot()
-    {
-        foreach (SpawnSlot slot in GameController.Instance.SpawnSlots)
-        {
-            if (slot != null && !slot.IsOccupied)
-                return slot;
-        }
-
-        return null;
     }
 }
