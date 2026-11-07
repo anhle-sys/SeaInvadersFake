@@ -63,11 +63,16 @@ public class PurchasePopup : MonoBehaviour
         if (emptySlot.plane != null)
             emptySlot.plane.SetActive(false);
 
+        // Mỗi lần mua một id riêng -> nâng cấp của tàu này không dùng chung với tàu cùng loại khác
+        string instanceId = GameData.NewBoatInstanceId(data.id);
+
         BoatAIController ai = boat.GetComponent<BoatAIController>();
         if (ai != null)
-            // Mỗi lần mua một id riêng -> nâng cấp của tàu này không dùng chung với tàu cùng loại khác
-            ai.Initialize(data, GameData.NewBoatInstanceId(data.id));
+            ai.Initialize(data, instanceId);
 
+        // Ghi nhận tàu đã mua (chưa chốt): vào trận sẽ được lưu và spawn lại ở các round sau
+        int slotIndex = System.Array.IndexOf(GameController.Instance.SpawnSlots, emptySlot);
+        GameData.AddPendingBoat(instanceId, data.id, slotIndex);
     }
 
     private SpawnSlot GetFirstEmptySlot()

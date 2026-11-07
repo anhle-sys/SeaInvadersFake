@@ -10452,6 +10452,10 @@ MonoBehaviour:
   enemyTower: {fileID: 969909412}
   allyTower: {fileID: 774079207}
   startingGold: 500
+  boatCatalog:
+  - {fileID: 11400000, guid: 354ea28ae5b891a4b9dd17e75c6ec406, type: 2}
+  - {fileID: 11400000, guid: 0caa96039524a2c42aa5251ca31a0e6e, type: 2}
+  - {fileID: 11400000, guid: 7536031dd8e007442a0c71d1a6f32534, type: 2}
 --- !u!4 &1251473412
 Transform:
   m_ObjectHideFlags: 0

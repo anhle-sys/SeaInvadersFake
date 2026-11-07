@@ -8,10 +8,18 @@ public static class GameData
     public const float EvasionCap = 60f;    // %
 
     public static int Gold { get; private set; }
+
+    // Cấp nâng cấp hiện tại (đang dùng trong game, gồm cả phần chưa chốt)
     private static readonly Dictionary<string, int> upgradeLevels = new();
+    // Bản chốt của upgradeLevels tại lần vào trận gần nhất -> đây là phần được ghi xuống đĩa
+    private static readonly Dictionary<string, int> committedUpgrades = new();
     private static readonly Dictionary<string, int> boatLevels = new();
-    // Tàu người chơi đã mua (id riêng, loại tàu, ô spawn): lưu xuống đĩa để spawn lại ở các lượt chơi sau
+
+    // Tàu đã chốt (đã từng vào trận): lưu xuống đĩa, spawn lại mỗi đầu round
     private static readonly List<OwnedEntry> ownedBoats = new();
+    // Tàu vừa mua trong round này, chưa vào trận: thoát game thì không lưu và được hoàn vàng
+    private static readonly List<OwnedEntry> pendingBoats = new();
+
     public static event Action<int> OnGoldChanged;
     public static event Action<int> OnNotEnoughGold;
     public static event Action<string, StatType, int> OnUpgradeChanged;
@@ -31,12 +39,16 @@ public static class GameData
         uncommittedSpend = 0;
         dirty = false;
         upgradeLevels.Clear();
+        committedUpgrades.Clear();
         boatLevels.Clear();
         ownedBoats.Clear();
+        pendingBoats.Clear();
         OnGoldChanged = null;
         OnNotEnoughGold = null;
         OnUpgradeChanged = null;
     }
+
+    #region Gold
 
     public static void AddGold(int amount)
     {
@@ -72,29 +84,112 @@ public static class GameData
         AddGold(amount);
     }
 
+    // Gọi khi bắt đầu trận: tàu mới mua + nâng cấp trở thành dữ liệu chính thức và được lưu
     public static void CommitPurchases()
     {
+        ownedBoats.AddRange(pendingBoats);
+        pendingBoats.Clear();
+
+        committedUpgrades.Clear();
+        foreach (var kv in upgradeLevels)
+            committedUpgrades[kv.Key] = kv.Value;
+
         uncommittedSpend = 0;
         Save();
     }
 
+    #endregion
+
+    #region Boats
+
     public static int GetBoatLevel(string boatId) =>
         boatLevels.TryGetValue(boatId, out var lv) ? lv : 0;
 
-    public static void SetBoatLevel(string boatId, int level) =>
+    public static void SetBoatLevel(string boatId, int level)
+    {
         boatLevels[boatId] = level;
+        dirty = true;
+    }
 
     public static string NewBoatInstanceId(string boatId) =>
         $"{boatId}_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
 
-    public static void ReleaseBoat(string instanceId)
+    // Ghi nhận tàu vừa mua vào ô spawn `slot` (chỉ số trong GameController.SpawnSlots)
+    public static void AddPendingBoat(string instanceId, string boatId, int slot)
     {
-        if (string.IsNullOrEmpty(instanceId))
+        if (string.IsNullOrEmpty(instanceId) || string.IsNullOrEmpty(boatId))
+            return;
+        if (FindIndex(ownedBoats, instanceId) >= 0 || FindIndex(pendingBoats, instanceId) >= 0)
             return;
 
+        pendingBoats.Add(new OwnedEntry { instanceId = instanceId, boatId = boatId, slot = slot });
+    }
+
+    // Danh sách tàu đã chốt để spawn đầu round
+    public static List<OwnedBoat> GetOwnedBoats()
+    {
+        var list = new List<OwnedBoat>(ownedBoats.Count);
+        foreach (var e in ownedBoats)
+            list.Add(new OwnedBoat(e.instanceId, e.boatId, e.slot));
+        return list;
+    }
+
+    public static bool IsOwned(string instanceId) => FindIndex(ownedBoats, instanceId) >= 0;
+
+    // Cập nhật ô spawn nếu tàu bị đặt sang ô khác (vd: ô cũ không còn hợp lệ)
+    public static void SetBoatSlot(string instanceId, int slot)
+    {
+        int i = FindIndex(ownedBoats, instanceId);
+        if (i >= 0)
+        {
+            if (ownedBoats[i].slot != slot) { ownedBoats[i].slot = slot; dirty = true; }
+            return;
+        }
+
+        i = FindIndex(pendingBoats, instanceId);
+        if (i >= 0)
+            pendingBoats[i].slot = slot;
+    }
+
+    // Bỏ hẳn một tàu đã sở hữu (vd: bán tàu) cùng toàn bộ nâng cấp của nó
+    public static void RemoveOwnedBoat(string instanceId)
+    {
+        int i = FindIndex(ownedBoats, instanceId);
+        if (i < 0)
+            return;
+        ownedBoats.RemoveAt(i);
+        RemoveUpgrades(upgradeLevels, instanceId);
+        RemoveUpgrades(committedUpgrades, instanceId);
+        dirty = true;
+    }
+
+    // Gọi khi GameObject tàu bị hủy. Tàu đã chốt vẫn thuộc về người chơi (chết trong trận
+    // hay đổi scene đều spawn lại round sau) nên giữ nguyên; chỉ dọn tàu chưa chốt.
+    public static void ReleaseBoat(string instanceId)
+    {
+        if (string.IsNullOrEmpty(instanceId) || IsOwned(instanceId))
+            return;
+
+        int i = FindIndex(pendingBoats, instanceId);
+        if (i >= 0)
+            pendingBoats.RemoveAt(i);
+
+        RemoveUpgrades(upgradeLevels, instanceId);
+    }
+
+    private static int FindIndex(List<OwnedEntry> list, string instanceId)
+    {
+        for (int i = 0; i < list.Count; i++)
+            if (list[i].instanceId == instanceId)
+                return i;
+        return -1;
+    }
+
+    private static void RemoveUpgrades(Dictionary<string, int> dict, string instanceId)
+    {
         string prefix = instanceId + ":";
         List<string> remove = null;
-        foreach (var key in upgradeLevels.Keys)
+        foreach (var key in dict.Keys)
         {
             if (key.StartsWith(prefix, StringComparison.Ordinal))
                 (remove ??= new List<string>()).Add(key);
@@ -103,26 +198,30 @@ public static class GameData
         if (remove == null)
             return;
         foreach (var key in remove)
-            upgradeLevels.Remove(key);
+            dict.Remove(key);
     }
 
-private static string Key(string instanceId, StatType stat) => $"{instanceId}:{stat}";
+    #endregion
 
-public static int GetUpgradeLevel(string instanceId, StatType stat)
+    #region Upgrades / Stats
+
+    private static string Key(string instanceId, StatType stat) => $"{instanceId}:{stat}";
+
+    public static int GetUpgradeLevel(string instanceId, StatType stat)
     {
         if (string.IsNullOrEmpty(instanceId))
             return 0;
         return upgradeLevels.TryGetValue(Key(instanceId, stat), out var lv) ? lv : 0;
     }
 
-public static float GetUpgradeBonus(BoatData data, string instanceId, StatType stat)
+    public static float GetUpgradeBonus(BoatData data, string instanceId, StatType stat)
     {
         var up = data.GetUpgrade(stat);
         if (up == null) return 0f;
         return up.bonusPerLevel * GetUpgradeLevel(instanceId, stat);
     }
 
-public static bool TryUpgrade(BoatData data, string instanceId, StatType stat)
+    public static bool TryUpgrade(BoatData data, string instanceId, StatType stat)
     {
         if (data == null || string.IsNullOrEmpty(instanceId)) return false;
 
@@ -132,8 +231,7 @@ public static bool TryUpgrade(BoatData data, string instanceId, StatType stat)
         int cur = GetUpgradeLevel(instanceId, stat);
         if (cur >= up.maxLevel) return false;
 
-        // Nâng cấp gắn với từng con tàu và không được lưu qua các lần chơi (tàu cũng vậy),
-        // nên tính như tiền mua tàu: chưa vào trận mà thoát thì được hoàn lại vàng.
+        // Nâng cấp chỉ được lưu khi vào trận (CommitPurchases); thoát trước đó thì hoàn vàng
         if (!SpendGoldForPurchase(GetUpgradeCost(data, instanceId, stat))) return false;
 
         upgradeLevels[Key(instanceId, stat)] = cur + 1;
@@ -141,7 +239,7 @@ public static bool TryUpgrade(BoatData data, string instanceId, StatType stat)
         return true;
     }
 
-public static int GetUpgradeCost(BoatData data, string instanceId, StatType stat)
+    public static int GetUpgradeCost(BoatData data, string instanceId, StatType stat)
     {
         var up = data.GetUpgrade(stat);
         if (up == null) return 0;
@@ -150,27 +248,33 @@ public static int GetUpgradeCost(BoatData data, string instanceId, StatType stat
         return Mathf.RoundToInt(up.baseCost * Mathf.Pow(up.costGrowth, cur));
     }
 
-public static float GetDamage(BoatData data, string instanceId) =>
+    public static float GetDamage(BoatData data, string instanceId) =>
         data.GetLevel(GetBoatLevel(data.id)).damage + GetUpgradeBonus(data, instanceId, StatType.Weapon);
 
-public static float GetArmor(BoatData data, string instanceId) =>
+    public static float GetArmor(BoatData data, string instanceId) =>
         GetUpgradeBonus(data, instanceId, StatType.Armor);
 
-public static float GetCritChance(BoatData data, string instanceId) =>
-        Mathf.Clamp(GetUpgradeBonus(data, instanceId, StatType.Critical), 0f, CritChanceCap);   // % , có cap   // % , có cap
+    public static float GetCritChance(BoatData data, string instanceId) =>
+        Mathf.Clamp(GetUpgradeBonus(data, instanceId, StatType.Critical), 0f, CritChanceCap); // %, có cap
 
-public static float GetEvasion(BoatData data, string instanceId) =>
+    public static float GetEvasion(BoatData data, string instanceId) =>
         Mathf.Clamp(GetUpgradeBonus(data, instanceId, StatType.Evasion), 0f, EvasionCap);
-    [Serializable] private class Entry 
-    { 
-        public string key; 
-        public int level; 
+
+    #endregion
+
+    #region Save / Load
+
+    [Serializable] private class Entry
+    {
+        public string key;
+        public int level;
     }
-    [Serializable] private class OwnedEntry 
-    { 
-        public string instanceId; 
-        public string boatId; 
-        public int slot; 
+
+    [Serializable] private class OwnedEntry
+    {
+        public string instanceId;
+        public string boatId;
+        public int slot;
     }
 
     public readonly struct OwnedBoat
@@ -196,12 +300,15 @@ public static float GetEvasion(BoatData data, string instanceId) =>
         public List<OwnedEntry> owned = new();
     }
 
-public static void Save()
+    public static void Save()
     {
-        // Tàu chưa vào trận không được lưu -> lưu kèm phần vàng đã trả cho chúng (coi như hoàn lại).
-        // Nâng cấp gắn với từng tàu (instanceId) nên không lưu xuống đĩa.
+        // Chỉ ghi dữ liệu đã chốt: tàu/nâng cấp chưa vào trận không được lưu,
+        // nên cộng lại phần vàng đã trả cho chúng (coi như hoàn lại).
         var s = new SaveData { gold = Gold + uncommittedSpend };
         foreach (var kv in boatLevels) s.boats.Add(new Entry { key = kv.Key, level = kv.Value });
+        foreach (var kv in committedUpgrades) s.upgrades.Add(new Entry { key = kv.Key, level = kv.Value });
+        foreach (var e in ownedBoats)
+            s.owned.Add(new OwnedEntry { instanceId = e.instanceId, boatId = e.boatId, slot = e.slot });
 
         PlayerPrefs.SetString(SaveKey, JsonUtility.ToJson(s));
         PlayerPrefs.Save();
@@ -217,7 +324,10 @@ public static void Save()
     public static void Load(int defaultGold = 0)
     {
         upgradeLevels.Clear();
+        committedUpgrades.Clear();
         boatLevels.Clear();
+        ownedBoats.Clear();
+        pendingBoats.Clear();
         uncommittedSpend = 0;
         dirty = false;
 
@@ -242,9 +352,29 @@ public static void Save()
         }
 
         Gold = Mathf.Max(0, s.gold);
+
         if (s.boats != null)
             foreach (var e in s.boats)
                 if (e != null && !string.IsNullOrEmpty(e.key)) boatLevels[e.key] = Mathf.Max(0, e.level);
+
+        if (s.owned != null)
+            foreach (var e in s.owned)
+                if (e != null && !string.IsNullOrEmpty(e.instanceId) && !string.IsNullOrEmpty(e.boatId)
+                    && FindIndex(ownedBoats, e.instanceId) < 0)
+                    ownedBoats.Add(new OwnedEntry { instanceId = e.instanceId, boatId = e.boatId, slot = e.slot });
+
+        // Chỉ nạp nâng cấp của tàu còn sở hữu (bỏ rác của tàu cũ)
+        if (s.upgrades != null)
+            foreach (var e in s.upgrades)
+            {
+                if (e == null || string.IsNullOrEmpty(e.key)) continue;
+                int sep = e.key.LastIndexOf(':');
+                if (sep <= 0 || !IsOwned(e.key.Substring(0, sep))) continue;
+
+                int lv = Mathf.Max(0, e.level);
+                upgradeLevels[e.key] = lv;
+                committedUpgrades[e.key] = lv;
+            }
 
         OnGoldChanged?.Invoke(Gold);
     }
@@ -255,8 +385,13 @@ public static void Save()
         uncommittedSpend = 0;
         dirty = false;
         upgradeLevels.Clear();
+        committedUpgrades.Clear();
         boatLevels.Clear();
+        ownedBoats.Clear();
+        pendingBoats.Clear();
         PlayerPrefs.DeleteKey(SaveKey);
         OnGoldChanged?.Invoke(Gold);
     }
+
+    #endregion
 }

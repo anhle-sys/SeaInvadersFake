@@ -34,6 +34,9 @@ public class GameController : MonoBehaviour
     [SerializeField] public Transform allyTower;
     [Header("Economy")]
     [SerializeField] private int startingGold = 500;
+    [Header("Boats")]
+    [Tooltip("Tất cả BoatData người chơi có thể mua - dùng để tìm lại tàu đã lưu theo id")]
+    [SerializeField] private BoatData[] boatCatalog;
 
     private void Awake()
     {
@@ -47,6 +50,74 @@ public class GameController : MonoBehaviour
         GoldBuff.Reset();
         GameData.Load(startingGold);
         fightBtn.onClick.AddListener(OnFightClicked);
+    }
+
+    private void Start() => SpawnOwnedBoats();
+
+    // Đầu mỗi round: đặt lại toàn bộ tàu người chơi đã sở hữu vào ô spawn của chúng
+    public void SpawnOwnedBoats()
+    {
+        if (spawnSlots == null)
+            return;
+
+        foreach (var slot in spawnSlots)
+            if (slot != null) slot.Init();   // nhận diện tàu đặt sẵn trong scene
+
+        foreach (var owned in GameData.GetOwnedBoats())
+        {
+            BoatData data = FindBoatData(owned.BoatId);
+            if (data == null)
+            {
+                Debug.LogWarning($"GameController: không tìm thấy BoatData id '{owned.BoatId}' trong boatCatalog.");
+                continue;
+            }
+
+            GameObject prefab = data.GetPrefab(GameData.GetBoatLevel(data.id));
+            if (prefab == null)
+                continue;
+
+            int index = owned.Slot;
+            if (index < 0 || index >= spawnSlots.Length || spawnSlots[index] == null || spawnSlots[index].IsOccupied)
+                index = FindEmptySlotIndex();
+            if (index < 0)
+            {
+                Debug.LogWarning($"GameController: hết ô trống để spawn tàu '{owned.InstanceId}'.");
+                continue;
+            }
+
+            SpawnSlot slot = spawnSlots[index];
+            GameObject boat = slot.Spawn(prefab);
+            if (boat == null)
+                continue;
+
+            if (slot.plane != null)
+                slot.plane.SetActive(false);
+
+            BoatAIController ai = boat.GetComponent<BoatAIController>();
+            if (ai != null)
+                ai.Initialize(data, owned.InstanceId);
+
+            if (index != owned.Slot)
+                GameData.SetBoatSlot(owned.InstanceId, index);
+        }
+    }
+
+    private BoatData FindBoatData(string boatId)
+    {
+        if (boatCatalog == null)
+            return null;
+        foreach (var d in boatCatalog)
+            if (d != null && d.id == boatId)
+                return d;
+        return null;
+    }
+
+    private int FindEmptySlotIndex()
+    {
+        for (int i = 0; i < spawnSlots.Length; i++)
+            if (spawnSlots[i] != null && !spawnSlots[i].IsOccupied)
+                return i;
+        return -1;
     }
 
     private void OnDestroy()
