@@ -10,10 +10,11 @@ public class BangerData : BoatData
     public LayerMask damageLayers;
     public GameObject explosionPrefab;
 
+    // Banger luôn chạy nhanh bằng moveSpeed (chỉnh trong levels). Thấy địch thì chỉ bẻ lái mượt về phía địch,
+    // không đổi tốc độ, nên không bị giật. Độ gắt tăng tốc / bẻ lái chỉnh trong BangerHandlingProfile
     [Header("Combat Movement")]
-    [Range(0.05f, 1f)] public float chargeSpeedMultiplier = 1f;
-    [Tooltip("Bật: lao vào địch là đạt tốc độ tối đa ngay, không có đoạn tăng tốc. Tắt: tăng tốc theo profile như tàu thường")]
-    public bool chargeInstantSpeed = true;
     [Tooltip("Tốc độ còn lại khi cua gắt lúc lao vào địch (0.1..1). 1 = không chậm lại khi bẻ lái")]
     [Range(0.1f, 1f)] public float chargeSharpTurnSpeedFactor = 1f;
+    [Tooltip("Ngắm đón đầu theo vận tốc địch để đường lao là đường thẳng thay vì đuổi theo đuôi")]
+    public bool chargeLeadTarget = true;
 }

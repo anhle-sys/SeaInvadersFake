@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 34e31aed69dd32040ab1ae03b114211a, type: 3}
+  m_Name: GunnerHandlingProfile
+  m_EditorClassIdentifier: Assembly-CSharp::BoatHandlingProfile
+  acceleration: 7
+  deceleration: 14
+  speedResponse: 1.8
+  brakeResponse: 3.5
+  slowingDistance: 7
+  sharpTurnSpeedFactor: 0.6
+  turnResponsiveness: 2.2
+  yawAcceleration: 150
+  yawResponse: 3.5
+  turnFeedForward: 1
+  lateralGrip: 3.5
+  avoidanceRadius: 4
+  avoidanceWeight: 1.2
+  obstacleMask:
+    serializedVersion: 2
+    m_Bits: 1
+  obstacleMargin: 1
+  obstacleSteerWeight: 1.5

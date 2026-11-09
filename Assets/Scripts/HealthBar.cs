@@ -98,7 +98,20 @@ public class HealthBar : MonoBehaviour
 
         Vector3 pos = cam.WorldToScreenPoint(target.BarWorldPosition);
         bool visible = pos.z > 0;
-        fill.transform.parent.gameObject.SetActive(visible);
+        // Không SetActive(false) chính object này (fill nằm ngay dưới root): object tắt thì LateUpdate
+        // không chạy nữa, thanh máu không bao giờ hiện lại (vd: camera zoom vào tàu khi mở popup nâng cấp)
+        SetVisible(visible);
         if (visible) transform.position = pos;
+    }
+
+    CanvasGroup canvasGroup;
+
+    void SetVisible(bool visible)
+    {
+        if (canvasGroup == null && !TryGetComponent(out canvasGroup))
+            canvasGroup = gameObject.AddComponent<CanvasGroup>();
+        canvasGroup.alpha = visible ? 1f : 0f;
+        canvasGroup.blocksRaycasts = false;
+        canvasGroup.interactable = false;
     }
 }

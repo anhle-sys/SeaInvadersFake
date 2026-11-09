@@ -64,3 +64,4 @@ MonoBehaviour:
   orbitCorrectionGain: 5
   maxOrbitCorrection: 40
   maxOutwardCorrection: 15
+  handlingProfile: {fileID: 11400000, guid: d68b14a4b10a4e28a415e92820108397, type: 2}

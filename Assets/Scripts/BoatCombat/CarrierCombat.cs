@@ -13,7 +13,7 @@ public class CarrierCombat : BoatCombatBase
     private BoatStats stats;
     private float launchTimer;
     private float orbitDirection = 1f;
-    private readonly List<BoatPlane> planes = new List<BoatPlane>();
+    private readonly List<MonoBehaviour> planes = new List<MonoBehaviour>();
 
     public override float CombatSpeedMultiplier =>
         data != null ? data.combatSpeedMultiplier : 0.3f;
@@ -69,16 +69,26 @@ public class CarrierCombat : BoatCombatBase
         Transform point = launchPoint != null ? launchPoint : transform;
 
         GameObject go = Instantiate(data.planePrefab, point.position, point.rotation);
-        BoatPlane plane = go.GetComponent<BoatPlane>();
 
-        if (plane == null)
+        // Ưu tiên Fly (bay lên trời, bắn từ trên xuống); prefab cũ dùng BoatPlane vẫn chạy
+        MonoBehaviour plane;
+        if (go.TryGetComponent(out Fly fly))
         {
-            Debug.LogError("Plane prefab thiếu BoatPlane!");
+            fly.Init(targetController.Team, enemy, data, stats);
+            plane = fly;
+        }
+        else if (go.TryGetComponent(out BoatPlane boatPlane))
+        {
+            boatPlane.Init(targetController.Team, enemy, data, stats);
+            plane = boatPlane;
+        }
+        else
+        {
+            Debug.LogError("Plane prefab thiếu Fly / BoatPlane!");
             Destroy(go);
             return;
         }
 
-        plane.Init(targetController.Team, enemy, data, stats);
         planes.Add(plane);
     }
 }

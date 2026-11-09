@@ -52,3 +52,4 @@ MonoBehaviour:
   keepDistance: 12
   combatSpeedMultiplier: 0.3
   radiusCorrection: 1.5
+  handlingProfile: {fileID: 0}

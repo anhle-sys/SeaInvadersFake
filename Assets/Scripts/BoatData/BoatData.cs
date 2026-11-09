@@ -49,6 +49,10 @@ public abstract class BoatData : ScriptableObject
     public int cost = 100;
     public int killReward = 50;
 
+    [Header("Movement")]
+    [Tooltip("Thông số cảm giác lái riêng của loại tàu này. Để trống = dùng profile gắn trên prefab")]
+    public BoatHandlingProfile handlingProfile;
+
     [Header("Detection")]
     public float detectionRadius = 15f;
     public BoatLevelStats[] levels = new BoatLevelStats[1];

@@ -38,6 +38,25 @@ public class Bullet : MonoBehaviour
         }
     }
 
+    // Bắn theo hướng 3D (giữ trục y), vd: máy bay bắn chéo từ trên trời xuống
+    public void InitDirection(BoatTeam team, Vector3 direction, float damageAmount)
+    {
+        rb = GetComponent<Rigidbody>();
+        rb.useGravity = false;
+        ownerTeam = team;
+        damage = damageAmount;
+        timer = 0f;
+
+        if (direction.sqrMagnitude > 0.001f)
+        {
+            direction.Normalize();
+            transform.rotation = Quaternion.LookRotation(direction);
+            rb.linearVelocity = direction * speed;
+        }
+    }
+
+    public float Speed => speed;
+
     public static Vector3 PredictIntercept(Vector3 shooter, Vector3 target, Vector3 targetVelocity, float projectileSpeed)
     {
         Vector3 d = target - shooter; d.y = 0f;

@@ -9,8 +9,8 @@ public class BangerCombat : BoatCombatBase, IBoatMovementModifier
 
     private bool charging;   // đang lao vào địch: bỏ qua né đồng đội
 
-    public override float CombatSpeedMultiplier =>
-        data != null ? data.chargeSpeedMultiplier : 1f;
+    // Giữ nguyên tốc độ khi thấy địch: Banger vốn đã chạy nhanh, không tăng vọt tốc độ gây giật
+    public override float CombatSpeedMultiplier => 1f;
 
     public override void Setup(BoatData boatData, BoatStats boatStats)
     {
@@ -34,14 +34,11 @@ public class BangerCombat : BoatCombatBase, IBoatMovementModifier
         if (!charging || data == null)
             return;
 
-        if (data.chargeInstantSpeed)
-        {
-            tuning.acceleration = 1000000f;
-            tuning.speedResponse = 1f / Mathf.Max(ctx.dt, 0.0001f);
-        }
-
+        // Không chậm lại khi bẻ lái về phía địch
         tuning.sharpTurnSpeedFactor = Mathf.Max(tuning.sharpTurnSpeedFactor, data.chargeSharpTurnSpeedFactor);
     }
+
+    public void OnMovementReset() => charging = false;
 
     public override void Tick(Transform enemy)
     {
@@ -57,7 +54,17 @@ public class BangerCombat : BoatCombatBase, IBoatMovementModifier
             return;
         }
 
-        movement.Steer(to);
+        // Ngắm đón đầu: lao theo đường thẳng tới điểm gặp địch thay vì đuổi theo đuôi
+        Vector3 aim = enemy.position;
+        if (data.chargeLeadTarget && enemy.TryGetComponent(out Rigidbody enemyRb))
+        {
+            float chargeSpeed = Mathf.Max(movement.CurrentSpeed, 0.1f);
+            aim = Bullet.PredictIntercept(transform.position, enemy.position, enemyRb.linearVelocity, chargeSpeed);
+        }
+
+        Vector3 dir = aim - transform.position;
+        dir.y = 0f;
+        movement.Steer(dir.sqrMagnitude > 0.001f ? dir : to);
     }
 
     private void OnCollisionEnter(Collision collision) => TryExplodeOnContact(collision);

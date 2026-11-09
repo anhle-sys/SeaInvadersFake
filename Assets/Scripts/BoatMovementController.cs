@@ -9,6 +9,7 @@ public class BoatMovementController : MonoBehaviour
     private const float SharpTurnStartAngle = 20f;    // từ góc lệch này bắt đầu giảm tốc khi cua
     private const float SharpTurnFullAngle = 120f;    // góc lệch giảm tốc nhiều nhất
     private const float MinArrivalFactor = 0.15f;
+    public const float MaxSpeedMultiplier = 4f;
 
     [Tooltip("Thông số cảm giác lái. Tạo mới bằng Create > Boats > Handling Profile")]
     [SerializeField] private BoatHandlingProfile profile;
@@ -62,6 +63,9 @@ public class BoatMovementController : MonoBehaviour
     public void ApplyLevel(BoatData data, int level)
     {
         BoatLevelStats s = data.GetLevel(level);
+        // Mỗi loại tàu có cảm giác lái riêng (Banger lao gắt, Gunner lượn...)
+        if (data.handlingProfile != null)
+            profile = data.handlingProfile;
         moveSpeed = s.moveSpeed;
         rotateSpeed = s.rotateSpeed;
         referenceMass = data.GetReferenceMass();
@@ -70,8 +74,9 @@ public class BoatMovementController : MonoBehaviour
 
     public void SetSpeedMultiplier(float multiplier)
     {
-        // Không cần làm mượt ở đây: gia tốc/phanh đã đưa tốc độ về dần
-        speedMultiplier = Mathf.Clamp(multiplier, 0.05f, 1f);
+        // Không cần làm mượt ở đây: gia tốc/phanh đã đưa tốc độ về dần.
+        // > 1 cho phép tàu vượt moveSpeed (vd: Banger lao vào địch)
+        speedMultiplier = Mathf.Clamp(multiplier, 0.05f, MaxSpeedMultiplier);
     }
 
     public void Steer(Vector3 direction)
