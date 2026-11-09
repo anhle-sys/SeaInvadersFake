@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public class PurchasePopup : MonoBehaviour
@@ -6,7 +7,6 @@ public class PurchasePopup : MonoBehaviour
     [SerializeField] private Vector3EventChannel oceanClicked; // kéo asset OceanClicked vào
     [SerializeField] private GameObject content;
     [SerializeField] private GameObject backBtn;
-    
 
     public void Show() 
     { 

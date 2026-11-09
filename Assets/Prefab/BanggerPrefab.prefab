@@ -17,6 +17,7 @@ GameObject:
   - component: {fileID: 3034025652714844179}
   - component: {fileID: 676587482349482368}
   - component: {fileID: 2150375150619940065}
+  - component: {fileID: -541516793099653652}
   m_Layer: 6
   m_Name: BanggerPrefab
   m_TagString: Untagged
@@ -189,8 +190,23 @@ MonoBehaviour:
   hitSpringDamping: 13
   fullStrengthDamageRatio: 0.1
   flashColor: {r: 2.2, g: 0.75, b: 0.6, a: 1}
+  flashIntensity: 0.6
   flashDuration: 0.16
   hitVfxPrefab: {fileID: 4824146226635218643, guid: d5517b12b672a3b439cf0239de055a26, type: 3}
+--- !u!114 &-541516793099653652
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1700838897997021517}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0ce980e0705dcdd4fba6375f73bc89df, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BoatClickable
+  boatData: {fileID: 11400000, guid: 354ea28ae5b891a4b9dd17e75c6ec406, type: 2}
+  channel: {fileID: 11400000, guid: 21af124081eb4f54e90b0fd282f3b909, type: 2}
 --- !u!1001 &418511867378477332
 PrefabInstance:
   m_ObjectHideFlags: 0

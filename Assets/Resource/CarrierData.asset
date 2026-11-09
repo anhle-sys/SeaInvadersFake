@@ -13,9 +13,18 @@ MonoBehaviour:
   m_Name: CarrierData
   m_EditorClassIdentifier: Assembly-CSharp::CarrierData
   id: carrier
+  displayName: Carrier
   boatType: 3
   cost: 100
   killReward: 50
+  handlingProfile: {fileID: 11400000, guid: 09576ae8ae2e434cb614623149c1878b, type: 2}
+  detectionRadius: 15
+  levels:
+  - prefab: {fileID: 5261690935475611637, guid: 23fe9718e2d1d6444a0e617822606951, type: 3}
+    damage: 10
+    maxHealth: 100
+    moveSpeed: 5
+    rotateSpeed: 120
   upgrades:
   - stat: 5
     bonusPerLevel: 2
@@ -32,15 +41,8 @@ MonoBehaviour:
     maxLevel: 10
     baseCost: 100
     costGrowth: 1.15
-  displayName: 
-  prefab: {fileID: 0}
-  maxHealth: 100
-  moveSpeed: 15
-  acceleration: 10
-  rotateSpeed: 120
-  detectionRadius: 15
-  planePrefab: {fileID: 0}
-  planeBulletPrefab: {fileID: 0}
+  planePrefab: {fileID: 1658166550377932998, guid: 259487e2af712bb44a0836df095bc496, type: 3}
+  planeBulletPrefab: {fileID: 6777685867246855625, guid: b1d834593289c49d898d2ea98753d75f, type: 3}
   maxPlanes: 3
   planesPerLaunch: 1
   launchInterval: 4
@@ -52,4 +54,3 @@ MonoBehaviour:
   keepDistance: 12
   combatSpeedMultiplier: 0.3
   radiusCorrection: 1.5
-  handlingProfile: {fileID: 0}
