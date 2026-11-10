@@ -35,7 +35,9 @@ public class GunnerUpgratePopup : MonoBehaviour
         if (weaponUpgrade != null)
         {
             int weaponLevel = GameData.GetUpgradeLevel(instanceId, StatType.Weapon);
-            weaponLevelText.text = $"Level: {weaponLevel}";
+            weaponLevelText.text = weaponUpgrade.FormatLevel(weaponLevel);   // dạng bậc.lần: 2.0 → 2.1 → … → 3.0
+            if (weaponImage != null)
+                weaponImage.fillAmount = weaponUpgrade.GetTierFill(weaponLevel);
             coinCostWeapon.text = $"{GameData.GetUpgradeCost(boatData, instanceId, StatType.Weapon)}";
             BindUpgrade(upgrateWeaponButton, boatData, instanceId, StatType.Weapon);
             upgrateWeaponButton.interactable = weaponLevel < weaponUpgrade.maxLevel;
@@ -45,7 +47,9 @@ public class GunnerUpgratePopup : MonoBehaviour
         if (armorUpgrade != null)
         {
             int armorLevel = GameData.GetUpgradeLevel(instanceId, StatType.Armor);
-            amorLevelText.text = $"Level: {armorLevel}";
+            amorLevelText.text = armorUpgrade.FormatLevel(armorLevel);   // dạng bậc.lần: 2.0 → 2.1 → … → 3.0
+            if (amorImage != null)
+                amorImage.fillAmount = armorUpgrade.GetTierFill(armorLevel);
             coinCostAmor.text = $"{GameData.GetUpgradeCost(boatData, instanceId, StatType.Armor)}";
             BindUpgrade(upgrateAmorButton, boatData, instanceId, StatType.Armor);
             upgrateAmorButton.interactable = armorLevel < armorUpgrade.maxLevel;

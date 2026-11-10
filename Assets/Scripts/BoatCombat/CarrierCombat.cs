@@ -7,26 +7,23 @@ public class CarrierCombat : BoatCombatBase
 
     [SerializeField] private float detectRange = 25f;
 
-    [Tooltip("Mỗi lần chọn điểm mới, tàu lệch quanh địch một góc ngẫu nhiên trong khoảng này (độ). Góc càng lớn tàu càng chạy xéo, càng ít lộ hông.")]
-    [SerializeField] private Vector2 roamAngleRange = new Vector2(60f, 120f);
-
-    [Tooltip("Cách điểm đến bấy nhiêu thì chọn điểm mới (không giảm tốc khi tới).")]
-    [SerializeField] private float roamArriveDistance = 2f;
+    [Tooltip("Tốc độ xoay tối đa của hướng lái mong muốn (độ/giây). Nhỏ = tàu đổi hướng êm, không giật")]
+    [SerializeField] private float maxHeadingChangeRate = 30f;
 
     [SerializeField] private List<Fly> planes = new List<Fly>();
-    [SerializeField] private float roamEnterMultiplier = 1.1f;
-    [SerializeField] private float roamExitMultiplier = 1.25f;
 
-    private bool isRoaming;
-
-    private const float AttackRangeRatio = 1.1f;
+    [Tooltip("Xa hơn keepDistance × hệ số này thì lái tới điểm tiếp tuyến của vòng lượn (không lái thẳng vào địch)")]
+    [SerializeField] private float tangentApproachMultiplier = 1.15f;
+    [Tooltip("Khoảng giãn cách giữa các máy bay khi cất cánh lần đầu (giây)")]
+    [SerializeField] private float launchStagger = 0.6f;
 
     private CarrierData data;
     private BoatStats stats;
     private float orbitDirection = 1f;
-    private float roamAngle;        // góc của điểm đến quanh địch (độ, 0 = +Z)
-    private bool hasRoamAngle;
+    private float combatTime;
     private int launchPointIndex;
+    private Vector3 smoothedDir;
+    private bool inCombat;
 
     public override float CombatSpeedMultiplier =>
         data != null ? data.combatSpeedMultiplier : 0.3f;
@@ -53,14 +50,74 @@ public class CarrierCombat : BoatCombatBase
 
     public override void OnEnterCombat(Transform enemy)
     {
-        orbitDirection = Random.value < 0.5f ? 1f : -1f;
-        hasRoamAngle = false;
-        isRoaming = false;
+        if (!inCombat)
+        {
+            inCombat = true;
+            combatTime = 0f;
+            smoothedDir = FlatForward();
+        }
+
+        // Vào trận / đổi mục tiêu: chọn chiều lượn theo hướng tàu đang chạy (ít phải quay nhất),
+        // không bắt tàu quay đầu ngược lại hay quay mũi về phía địch
+        if (enemy != null)
+            orbitDirection = ChooseOrbitDirection(enemy.position);
     }
 
     public override void OnExitCombat()
     {
-        hasRoamAngle = false;
+        inCombat = false;
+    }
+
+    private float ChooseOrbitDirection(Vector3 enemyPos)
+    {
+        Vector3 fromEnemy = transform.position - enemyPos;
+        fromEnemy.y = 0f;
+        if (fromEnemy.sqrMagnitude < 0.0001f)
+            return orbitDirection;
+
+        // Tiếp tuyến chiều +1 tại vị trí hiện tại; cùng phía với mũi tàu thì lượn chiều +1
+        Vector3 tangent = Vector3.Cross(Vector3.up, fromEnemy.normalized);
+        return Vector3.Dot(FlatForward(), tangent) >= 0f ? 1f : -1f;
+    }
+
+    // Hướng lái: ở xa thì đi tới điểm tiếp tuyến của vòng lượn, gần thì lượn tròn quanh địch ở bán kính keepDistance
+    private Vector3 GetCombatDirection(Transform enemy, Vector3 toEnemy, float dist, float keep)
+    {
+        if (dist > keep * tangentApproachMultiplier)
+        {
+            // Góc lệch khỏi hướng tới địch để đường đi chỉ "chạm" vòng tròn bán kính keep
+            float alpha = Mathf.Asin(Mathf.Clamp01(keep / dist)) * Mathf.Rad2Deg;
+            // Chiều lượn +1 đi theo Cross(up, fromEnemy) = quay toEnemy sang trái (âm) khi nhìn từ trên
+            return Quaternion.AngleAxis(-alpha * orbitDirection, Vector3.up) * (toEnemy / dist);
+        }
+
+        // Lượn tròn + tự kéo về đúng bán kính (quá gần thì hướng chéo ra ngoài, không quay đầu)
+        return GetOrbitDirection(enemy, keep, orbitDirection, data.radiusCorrection);
+    }
+
+    private Vector3 FlatForward()
+    {
+        Vector3 f = transform.forward;
+        f.y = 0f;
+        return f.sqrMagnitude > 0.0001f ? f.normalized : Vector3.forward;
+    }
+
+    // Xoay dần hướng lái về hướng mong muốn với tốc độ giới hạn: đổi chế độ / đổi chiều lượn không làm hướng nhảy đột ngột
+    private void SteerSmooth(Vector3 desired)
+    {
+        desired.y = 0f;
+        if (desired.sqrMagnitude < 0.0001f)
+            return;
+        desired.Normalize();
+
+        if (smoothedDir.sqrMagnitude < 0.0001f)
+            smoothedDir = FlatForward();
+
+        float maxRad = maxHeadingChangeRate * Mathf.Deg2Rad * Time.deltaTime;
+        smoothedDir = Vector3.RotateTowards(smoothedDir, desired, maxRad, 0f);
+        smoothedDir.y = 0f;
+        smoothedDir.Normalize();
+        movement.Steer(smoothedDir);
     }
 
     public override void Tick(Transform enemy)
@@ -68,38 +125,15 @@ public class CarrierCombat : BoatCombatBase
         if (data == null || enemy == null)
             return;
 
+        combatTime += Time.deltaTime;
         movement.SetSpeedMultiplier(data.combatSpeedMultiplier);
 
         Vector3 toEnemy = enemy.position - transform.position;
         toEnemy.y = 0f;
-
         float dist = toEnemy.magnitude;
+        float keep = data.keepDistance;
 
-        if (!isRoaming)
-        {
-            if (dist <= data.keepDistance * roamEnterMultiplier)
-            {
-                isRoaming = true;
-                hasRoamAngle = false;
-            }
-        }
-        else
-        {
-            if (dist > data.keepDistance * roamExitMultiplier)
-            {
-                isRoaming = false;
-                hasRoamAngle = false;
-            }
-        }
-
-        if (!isRoaming)
-        {
-            movement.Steer(toEnemy.normalized);
-        }
-        else
-        {
-            Roam(enemy);
-        }
+        SteerSmooth(GetCombatDirection(enemy, toEnemy, dist, keep));
 
         if (dist > detectRange)
             return;
@@ -112,51 +146,12 @@ public class CarrierCombat : BoatCombatBase
                 continue;
             }
 
+            // Máy bay cất cánh lần lượt, không chồng lên nhau
+            if (combatTime < i * launchStagger && planes[i].IsDocked)
+                continue;
+
             planes[i].Tick(enemy);
         }
-    }
-
-    private void Roam(Transform enemy)
-    {
-        Vector3 enemyPos = enemy.position;
-
-        if (!hasRoamAngle || FlatDistanceTo(RoamPoint(enemyPos)) <= roamArriveDistance)
-            PickRoamAngle(enemyPos);
-
-        // Điểm đến tính lại theo vị trí địch mỗi frame nên địch di chuyển thì vòng đi theo
-        Vector3 toPoint = RoamPoint(enemyPos) - transform.position;
-        toPoint.y = 0f;
-        movement.Steer(toPoint);
-    }
-
-    private void PickRoamAngle(Vector3 enemyPos)
-    {
-        Vector3 fromEnemy = transform.position - enemyPos;
-        fromEnemy.y = 0f;
-        float current = fromEnemy.sqrMagnitude > 0.0001f
-            ? Mathf.Atan2(fromEnemy.x, fromEnemy.z) * Mathf.Rad2Deg
-            : transform.eulerAngles.y;
-
-        // Thỉnh thoảng đổi chiều để đường đi đỡ đoán trước
-        if (Random.value < 0.25f)
-            orbitDirection = -orbitDirection;
-
-        float step = Random.Range(roamAngleRange.x, roamAngleRange.y);
-        roamAngle = current + orbitDirection * step;
-        hasRoamAngle = true;
-    }
-
-    private Vector3 RoamPoint(Vector3 enemyPos)
-    {
-        float r = roamAngle * Mathf.Deg2Rad;
-        return enemyPos + new Vector3(Mathf.Sin(r), 0f, Mathf.Cos(r)) * data.keepDistance;
-    }
-
-    private float FlatDistanceTo(Vector3 point)
-    {
-        Vector3 d = point - transform.position;
-        d.y = 0f;
-        return d.magnitude;
     }
 
     public bool AddPlaneFromUpgrade()

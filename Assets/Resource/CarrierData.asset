@@ -23,8 +23,8 @@ MonoBehaviour:
   - prefab: {fileID: 5261690935475611637, guid: 23fe9718e2d1d6444a0e617822606951, type: 3}
     damage: 10
     maxHealth: 100
-    moveSpeed: 5
-    rotateSpeed: 120
+    moveSpeed: 3
+    rotateSpeed: 45
   upgrades:
   - stat: 5
     bonusPerLevel: 2
@@ -52,5 +52,5 @@ MonoBehaviour:
   planeAttackRange: 6
   planeAttackInterval: 1
   keepDistance: 12
-  combatSpeedMultiplier: 0.3
+  combatSpeedMultiplier: 0.4
   radiusCorrection: 1.5

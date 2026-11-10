@@ -24,7 +24,9 @@ public class BangerUpgratePopup : MonoBehaviour
         if (explosiveUpgrade != null)
         {
             int explosiveLevel = GameData.GetUpgradeLevel(instanceId, StatType.Explosive);
-            explosiveLevelText.text = $"Level: {explosiveLevel}";
+            explosiveLevelText.text = explosiveUpgrade.FormatLevel(explosiveLevel);   // dạng bậc.lần: 2.0 → 2.1 → … → 3.0
+            if (explosiveImage != null)
+                explosiveImage.fillAmount = explosiveUpgrade.GetTierFill(explosiveLevel);
             BindUpgrade(upgrateExplosiveButton, boatData, instanceId, StatType.Explosive);
             upgrateExplosiveButton.interactable = explosiveLevel < explosiveUpgrade.maxLevel;
         }

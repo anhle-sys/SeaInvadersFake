@@ -24,7 +24,9 @@ public class CarrierUpgratePopup : MonoBehaviour
         if (airUpgrade != null)
         {
             int airLevel = GameData.GetUpgradeLevel(instanceId, StatType.Air);
-            airLevelText.text = $"Level: {airLevel}";
+            airLevelText.text = airUpgrade.FormatLevel(airLevel);   // dạng bậc.lần: 2.0 → 2.1 → … → 3.0
+            if (airImage != null)
+                airImage.fillAmount = airUpgrade.GetTierFill(airLevel);
             BindUpgrade(upgrateAirButton, boatData, instanceId, StatType.Air);
             upgrateAirButton.interactable = airLevel < airUpgrade.maxLevel;
         }

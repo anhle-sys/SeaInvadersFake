@@ -12,16 +12,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 34e31aed69dd32040ab1ae03b114211a, type: 3}
   m_Name: CarrierHandlingProfile
   m_EditorClassIdentifier: Assembly-CSharp::BoatHandlingProfile
-  acceleration: 7
-  deceleration: 14
-  speedResponse: 1.8
-  brakeResponse: 3.5
+  acceleration: 2
+  deceleration: 4
+  speedResponse: 0.8
+  brakeResponse: 1.5
   slowingDistance: 7
   sharpTurnSpeedFactor: 0.6
-  turnResponsiveness: 2.2
-  yawAcceleration: 150
-  yawResponse: 3.5
-  turnFeedForward: 1
+  turnResponsiveness: 1.2
+  yawAcceleration: 40
+  yawResponse: 2
+  turnFeedForward: 0.6
   lateralGrip: 3.5
   avoidanceRadius: 4
   avoidanceWeight: 1.2
