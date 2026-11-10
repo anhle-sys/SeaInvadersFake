@@ -178,7 +178,8 @@ public class GameController : MonoBehaviour
         BuffZone zone = timingBar.StopAndGetZone();
         ShowImageBuff();
         GoldBuff.Set(zone != null ? zone.buffValue : 1f);
-        StartGame();
+        DOVirtual.DelayedCall(0.75f, () => StartGame());
+        
     }
     public void StartGame()
     {

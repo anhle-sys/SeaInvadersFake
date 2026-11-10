@@ -43,16 +43,12 @@ public class StatUpgrade
     // Số lần nâng để đi hết một bậc (x.0 → x.1 … x.N → (x+1).0)
     private int LevelsPerTier => Mathf.Max(1, stepsPerTier) + 1;
 
-    /// <summary>Bậc hiện tại (phần nguyên), bắt đầu từ 1.</summary>
     public int GetTier(int level) => 1 + Mathf.Max(0, level) / LevelsPerTier;
 
-    /// <summary>Số lần đã nâng trong bậc hiện tại (phần thập phân).</summary>
     public int GetStep(int level) => Mathf.Max(0, level) % LevelsPerTier;
 
-    /// <summary>Text dạng "tier.step", VD "2.1".</summary>
     public string FormatLevel(int level) => $"{GetTier(level)}.{GetStep(level)}";
 
-    /// <summary>Tiến độ trong bậc cho Image.fillAmount (0 → 1). Ở cấp tối đa luôn đầy.</summary>
     public float GetTierFill(int level)
     {
         if (level >= maxLevel) return 1f;

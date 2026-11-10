@@ -265,8 +265,6 @@ public class GunnerCombat : BoatCombatBase, IBoatMovementModifier
 
     public bool TryOverrideSpeed(in BoatMovementContext ctx, float measuredForward, out float speed)
     {
-        // Tàu đang nhường bị đồng đội đẩy giật lùi: để mặc cho bị đẩy (trôi lùi rồi tắt dần), không ghì lại.
-        // Đây là bị đẩy thụ động, tàu không tự chạy lùi
         if (yielding && ctx.sensors.MustYield && measuredForward < 0f)
         {
             speed = measuredForward * Mathf.Exp(-ctx.profile.lateralGrip * ctx.dt);

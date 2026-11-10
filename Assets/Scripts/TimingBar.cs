@@ -28,7 +28,7 @@ public class TimingBar : MonoBehaviour
         foreach (var z in zones) totalWeight += z.weight;
     }
 
-    private void OnEnable() => StartBar();
+    private void OnEnable() => StartBar();  
 
     private void OnDisable() => arrowTween?.Kill();
 

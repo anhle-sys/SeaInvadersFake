@@ -52,6 +52,21 @@ public class BoatSteeringSensors
 
     public float ObstacleDistance { get; private set; } = float.MaxValue; //Khoảng cách từ tâm thân tàu tới vật cản gần nhất phía trước
 
+    private const float EnemyHoldSteer = 0.3f;      // độ bẻ lái tối thiểu khi enemy chắn trước mũi
+
+    // Bật né tàu địch (Gunner bật; Banger để tắt vì nó lao vào địch)
+    public bool AvoidEnemies { get; set; }
+    // Mục tiêu đang combat: không né, không phanh (Gunner lượn quanh nó)
+    public Transform IgnoreEnemy { get; set; }
+
+    public float EnemyAheadFree { get; private set; } = float.MaxValue;
+    public float EnemyAheadClosing { get; private set; }
+    public Vector3 EnemyAheadSteer { get; private set; }
+
+    private Collider enemyPassCollider;
+    private float enemyPassSide;
+    private Collider enemyAheadCollider;
+    private float enemyAheadLateral;
     public BoatSteeringSensors(Rigidbody rb)
     {
         this.rb = rb;
@@ -85,6 +100,10 @@ public class BoatSteeringSensors
         AllyAheadSteer = Vector3.zero;
         AllyAheadClosing = 0f;
         MustYield = false;
+        EnemyAheadFree = float.MaxValue;
+        EnemyAheadClosing = 0f;
+        EnemyAheadSteer = Vector3.zero;
+        enemyAheadCollider = null;
         if (p.avoidanceRadius <= 0f || teamSource == null)
         {
             Avoidance = Vector3.zero;
@@ -125,8 +144,17 @@ public class BoatSteeringSensors
 
             // Chỉ tránh tàu cùng phe: tàu địch là mục tiêu (Gunner lượn quanh, Banger lao vào)
             BoatTargetController other = col.GetComponentInParent<BoatTargetController>();
-            if (other == null || other.Team != teamSource.Team)
+            if (other == null)
                 continue;
+
+            if (other.Team != teamSource.Team)
+            {
+                if (!AvoidEnemies || other.transform == IgnoreEnemy)
+                    continue;
+                SenseEnemy(col, pos, forward, right, velocity, halfLength, halfWidth,
+                           laneRange, sideRadius, ref rightBlock, ref leftBlock);
+                continue;   // enemy không đi vào Avoidance (đẩy ra) của ally
+            }
 
             Vector3 away = pos - col.ClosestPoint(pos);
             away.y = 0f;
@@ -185,14 +213,9 @@ public class BoatSteeringSensors
 
         if (aheadCollider != null)
         {
-            // Chốt mạn vượt một lần cho mỗi đồng đội: vòng sang phía không có nó.
-            // Nó nằm ngay chính giữa (đối đầu) thì cả hai cùng bẻ phải
             if (aheadCollider != passCollider)
             {
                 passCollider = aheadCollider;
-                // Đối đầu: vượt theo chiều đường nhìn sang nhau đang xoay sẵn (từ vận tốc tương đối).
-                // Đại lượng này như nhau khi nhìn từ hai tàu nên cả hai luôn chọn khớp nhau và tách ra hai phía.
-                // Gần như thẳng hàng tuyệt đối thì cả hai cùng chọn +1 (cũng tách ra vì tính theo đường nhìn)
                 if (IsFacingMe(aheadCollider.attachedRigidbody))
                 {
                     Vector3 los = aheadCollider.bounds.center - pos;
@@ -211,13 +234,8 @@ public class BoatSteeringSensors
         }
         else if (passCollider != null)
         {
-            // Đường tạm trống (vd: vừa lùi ra) nhưng chưa vượt qua: giữ mạn đã chọn, nếu không
-            // cả hai lại bẻ về đích và lao vào nhau lần nữa
             Vector3 toPass = passCollider.ClosestPoint(pos) - pos;
             toPass.y = 0f;
-            // Nhớ khi nó vẫn ở phía trước và: còn đang lao về phía mình (đối đầu: vừa tránh ra một chút thì đường
-            // tạm trống nhưng bẻ về là đâm), hoặc - với tàu phải nhường - chưa tách hẳn sang ngang mà nó cũng
-            // không chạy xa dần. Tàu được đi trước thì đường trống là đi thẳng về đích, không lượn theo tàu đã đẩy ra
             Rigidbody passBody = passCollider.attachedRigidbody;
             Vector3 passVelocity = passBody != null ? passBody.linearVelocity : Vector3.zero;
             bool closingIn = Vector3.Dot(passVelocity, forward) < -CrossingSpeed;
@@ -232,7 +250,22 @@ public class BoatSteeringSensors
             else
                 passCollider = null;
         }
-
+        if (enemyAheadCollider != null)
+        {
+            // Chốt mạn vượt một lần cho mỗi enemy: vòng sang phía ngược với nó, chính giữa thì bẻ phải
+            if (enemyAheadCollider != enemyPassCollider)
+            {
+                enemyPassCollider = enemyAheadCollider;
+                enemyPassSide = enemyAheadLateral > halfWidth * 0.25f ? -1f : 1f;
+            }
+            float proximity = 1f - Mathf.Clamp01(EnemyAheadFree / laneRange);
+            EnemyAheadSteer = PassTangent(enemyAheadCollider, pos, right) * enemyPassSide
+                              * Mathf.Max(proximity, EnemyHoldSteer);
+        }
+        else
+        {
+            enemyPassCollider = null;
+        }
         Avoidance = Vector3.ClampMagnitude(sum, 1f);
         RightBlock = rightBlock;
         LeftBlock = leftBlock;
@@ -300,5 +333,49 @@ public class BoatSteeringSensors
         }
 
         return limit;
+    }
+    private void SenseEnemy(Collider col, Vector3 pos, Vector3 forward, Vector3 right, Vector3 velocity,
+                        float halfLength, float halfWidth, float laneRange, float sideRadius,
+                        ref float rightBlock, ref float leftBlock)
+    {
+        Vector3 closest = col.ClosestPoint(pos);
+        Vector3 away = pos - closest;
+        away.y = 0f;
+        float dist = away.magnitude;
+        if (dist < 0.01f)
+        {
+            away = pos - col.transform.position;
+            away.y = 0f;
+            dist = away.magnitude;
+            if (dist < 0.01f) return;
+        }
+        Vector3 toOther = -away / dist;
+
+        if (dist < sideRadius && Vector3.Dot(forward, toOther) > -0.5f)
+        {
+            float side = Vector3.Dot(toOther, right);
+            float w = 1f - dist / sideRadius;
+            if (side > 0.2f) rightBlock = Mathf.Max(rightBlock, w);
+            else if (side < -0.2f) leftBlock = Mathf.Max(leftBlock, w);
+        }
+
+        // Enemy nằm trên đường chạy trước mũi
+        Vector3 bow = pos + forward * halfLength;
+        Vector3 front = col.ClosestPoint(bow) - pos;
+        front.y = 0f;
+        float along = Vector3.Dot(front, forward);
+        Vector3 otherVelocity = col.attachedRigidbody != null ? col.attachedRigidbody.linearVelocity : Vector3.zero;
+        float laneFree = Mathf.Max(along - halfLength - AllyGap, 0f);
+        bool approaching = laneFree <= 0.05f || Vector3.Dot(velocity - otherVelocity, forward) > 0.5f;
+
+        if (along > halfLength * AheadMinRatio && laneFree < laneRange && approaching
+            && Mathf.Abs(Vector3.Dot(front, right)) < halfWidth + AllyLaneMargin
+            && laneFree < EnemyAheadFree)
+        {
+            EnemyAheadFree = laneFree;
+            EnemyAheadClosing = -Vector3.Dot(otherVelocity, forward);
+            enemyAheadCollider = col;
+            enemyAheadLateral = Vector3.Dot(col.bounds.center - pos, right);
+        }
     }
 }

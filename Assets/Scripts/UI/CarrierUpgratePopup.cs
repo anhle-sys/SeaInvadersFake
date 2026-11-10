@@ -4,13 +4,19 @@ using UnityEngine.UI;
 
 public class CarrierUpgratePopup : MonoBehaviour
 {
+    [Header("Air Upgrade UI")]
     [SerializeField] private TMP_Text airLevelText;
     [SerializeField] private Image airImage;
+    [SerializeField] private TMP_Text coinCostAir;
     [SerializeField] private Button upgrateAirButton;
+    [Header("Critical Upgrades UI")]
     [SerializeField] private TMP_Text criticalStatus;
     [SerializeField] private Button criticalButton;
+    [SerializeField] private TMP_Text coinCostCritical;
+    [Header("Evasion Upgrades UI")]
     [SerializeField] private TMP_Text evasionStatus;
     [SerializeField] private Button evasionButton;
+    [SerializeField] private TMP_Text coinCostEvasion;
 
     public void SetupUI(BoatData boatData, string instanceId)
     {
@@ -24,9 +30,10 @@ public class CarrierUpgratePopup : MonoBehaviour
         if (airUpgrade != null)
         {
             int airLevel = GameData.GetUpgradeLevel(instanceId, StatType.Air);
-            airLevelText.text = airUpgrade.FormatLevel(airLevel);   // dạng bậc.lần: 2.0 → 2.1 → … → 3.0
+            airLevelText.text = "Level: " + airUpgrade.GetTier(airLevel).ToString();   // dạng bậc.lần: 2.0 → 2.1 → … → 3.0
             if (airImage != null)
                 airImage.fillAmount = airUpgrade.GetTierFill(airLevel);
+            coinCostAir.text = $"{GameData.GetUpgradeCost(boatData, instanceId, StatType.Air)}";
             BindUpgrade(upgrateAirButton, boatData, instanceId, StatType.Air);
             upgrateAirButton.interactable = airLevel < airUpgrade.maxLevel;
         }
@@ -37,6 +44,7 @@ public class CarrierUpgratePopup : MonoBehaviour
             int criticalLevel = GameData.GetUpgradeLevel(instanceId, StatType.Critical);
             float critChance = GameData.GetCritChance(boatData, instanceId);
             criticalStatus.text = $"{critChance:0.#}%";   // % thực tế, không phải cấp
+            coinCostCritical.text = $"{GameData.GetUpgradeCost(boatData, instanceId, StatType.Critical)}";
             BindUpgrade(criticalButton, boatData, instanceId, StatType.Critical);
             criticalButton.interactable = criticalLevel < criticalUpgrade.maxLevel && critChance < GameData.CritChanceCap;
         }
@@ -47,6 +55,7 @@ public class CarrierUpgratePopup : MonoBehaviour
             int evasionLevel = GameData.GetUpgradeLevel(instanceId, StatType.Evasion);
             float evasion = GameData.GetEvasion(boatData, instanceId);
             evasionStatus.text = $"{evasion:0.#}%";
+            coinCostEvasion.text = $"{GameData.GetUpgradeCost(boatData, instanceId, StatType.Evasion)}";
             BindUpgrade(evasionButton, boatData, instanceId, StatType.Evasion);
             evasionButton.interactable = evasionLevel < evasionUpgrade.maxLevel && evasion < GameData.EvasionCap;
         }

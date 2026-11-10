@@ -1,12 +1,5 @@
 using UnityEngine;
 
-/// <summary>
-/// Máy bay của tàu sân bay. Chu trình:
-/// Docked -> cất cánh (chạy theo hướng tàu, lấy tốc độ rồi mới bay lên) -> Attacking
-/// Attacking: Run (bổ nhào xuống độ cao tấn công, bắn khi mục tiêu ở trước mũi)
-///            -> Extend (vượt qua mục tiêu thì kéo lên, bay thẳng ra xa) -> vòng lại Run
-/// Hết thời gian bay / mất dấu địch -> Returning (về tàu, hạ dần độ cao, giảm tốc) -> Landing -> Docked (nạp lại)
-/// </summary>
 public class Fly : MonoBehaviour
 {
     private enum State { Docked, Attacking, Returning, Landing }
@@ -99,7 +92,6 @@ public class Fly : MonoBehaviour
     private float AttackY => seaLevel + Mathf.Min(attackHeight, flyHeight);
     public bool IsDocked => state == State.Docked;
 
-    // Bán kính cua ở tốc độ tối đa
     private float TurnRadius =>
         data.planeSpeed / Mathf.Max(data.planeTurnSpeed * Mathf.Deg2Rad, 0.01f);
 
@@ -110,7 +102,6 @@ public class Fly : MonoBehaviour
         data = carrierData;
         stats = carrierStats;
 
-        // Init gọi lại khi nâng cấp tàu: máy bay đang bay thì chỉ cập nhật chỉ số, không reset vị trí / scale
         if (!firstInit && state != State.Docked)
             return;
 
@@ -251,14 +242,9 @@ public class Fly : MonoBehaviour
             case State.Returning: ReturnStep(dt); break;
             case State.Landing: LandingStep(dt); break;
         }
-
-        // Vừa đáp trong frame này: Land() đã trả scale về như lúc đỗ, không ghi đè
         if (state != State.Docked && this != null)
             UpdateScale(dt);
     }
-
-    // ---------------- Tấn công ----------------
-
     private void AttackStep(float dt)
     {
         Vector3 flatForward = FlatForward();
@@ -276,8 +262,6 @@ public class Fly : MonoBehaviour
         float dist = toTarget.magnitude;
         float angle = Vector3.Angle(flatForward, toTarget);
 
-        // Vượt qua mục tiêu ở cự ly gần -> kéo lên, bay thẳng ra xa rồi mới vòng lại.
-        // Nếu bẻ lái liên tục, mục tiêu nằm trong vòng cua và máy bay sẽ lượn tròn mãi không bắn được.
         float extendDist = Mathf.Max(data.planeAttackRange * 1.5f, TurnRadius * extendTurnRadiusMultiplier);
         if (!extending && dist < TurnRadius * 1.5f && angle > 70f)
             extending = true;
@@ -299,8 +283,6 @@ public class Fly : MonoBehaviour
         flatForward = FlyMove(dt, toTarget, targetY, data.planeSpeed, 1f);
         TryAttack(flatForward, toTarget);
     }
-
-    // ---------------- Về tàu ----------------
 
     private void ReturnStep(float dt)
     {
@@ -328,7 +310,6 @@ public class Fly : MonoBehaviour
             state = State.Landing;
     }
 
-    // Chạm boong: trượt vào điểm đỗ (điểm đỗ đang chạy theo tàu), xoay khớp hướng tàu
     private void LandingStep(float dt)
     {
         if (dockPoint == null)
@@ -358,9 +339,6 @@ public class Fly : MonoBehaviour
         Quaternion goal = dockPoint.rotation * Quaternion.Euler(pitch, 0f, bank);
         transform.rotation = Quaternion.Slerp(transform.rotation, goal, 1f - Mathf.Exp(-attitudeResponse * dt));
     }
-
-    // ---------------- Chuyển động chung ----------------
-
     private Vector3 FlatForward()
     {
         Vector3 f = transform.forward;
@@ -370,7 +348,6 @@ public class Fly : MonoBehaviour
         return f.normalized;
     }
 
-    // Bay như máy bay thật: tốc độ quay và tốc độ lên/xuống thay đổi dần, không đổi hướng tức thì
     private Vector3 FlyMove(float dt, Vector3 desiredFlat, float targetY, float targetSpeed, float turnBoost)
     {
         Vector3 pos = transform.position;
@@ -417,7 +394,6 @@ public class Fly : MonoBehaviour
         bank = Mathf.Lerp(bank, targetBank, k);
     }
 
-    // Phóng to khi rời tàu, thu nhỏ dần khi về gần tàu
     private void UpdateScale(float dt)
     {
         float want;
@@ -435,14 +411,11 @@ public class Fly : MonoBehaviour
         transform.localScale = dockedWorldScale * Mathf.Lerp(1f, flightScaleMultiplier, s); // không có parent: local = world
     }
 
-    // ---------------- Bắn ----------------
-
     private void TryAttack(Vector3 flatForward, Vector3 toTargetFlat)
     {
         if (attackTimer > 0f || target == null)
             return;
 
-        // Không bắn khi chưa lên đủ cao (vừa cất cánh)
         if (transform.position.y < seaLevel + (AttackY - seaLevel) * 0.7f)
             return;
 
