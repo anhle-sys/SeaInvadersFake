@@ -9,11 +9,11 @@ public class CarrierCombat : BoatCombatBase
 
     [Tooltip("Tốc độ xoay tối đa của hướng lái mong muốn (độ/giây). Nhỏ = tàu đổi hướng êm, không giật")]
     [SerializeField] private float maxHeadingChangeRate = 30f;
+    [Tooltip("Thời gian làm mượt hướng lái (giây): hướng lái vào/ra cua từ từ thay vì đổi tốc độ xoay đột ngột")]
+    [SerializeField] private float headingSmoothTime = 0.6f;
 
     [SerializeField] private List<Fly> planes = new List<Fly>();
 
-    [Tooltip("Xa hơn keepDistance × hệ số này thì lái tới điểm tiếp tuyến của vòng lượn (không lái thẳng vào địch)")]
-    [SerializeField] private float tangentApproachMultiplier = 1.15f;
     [Tooltip("Khoảng giãn cách giữa các máy bay khi cất cánh lần đầu (giây)")]
     [SerializeField] private float launchStagger = 0.6f;
 
@@ -22,8 +22,12 @@ public class CarrierCombat : BoatCombatBase
     private float orbitDirection = 1f;
     private float combatTime;
     private int launchPointIndex;
-    private Vector3 smoothedDir;
+    private float smoothedHeading;    // độ, quanh trục Y
+    private float headingVelocity;    // độ/giây
+    private Transform steerEnemy;
     private bool inCombat;
+    private int basePlaneCount = -1;                                  // -1: chưa đếm
+    private readonly List<Transform> usedDocks = new List<Transform>(); // điểm đỗ đã có máy bay
 
     public override float CombatSpeedMultiplier =>
         data != null ? data.combatSpeedMultiplier : 0.3f;
@@ -45,7 +49,33 @@ public class CarrierCombat : BoatCombatBase
 
             Transform dock = plane.transform.parent != null ? plane.transform.parent : transform;
             plane.Init(targetController.Team, data, stats, dock);
+            if (basePlaneCount < 0)
+                usedDocks.Add(dock);
         }
+
+        // Số máy bay có sẵn trên prefab (chỉ đếm lần Setup đầu, trước khi thêm máy bay từ nâng cấp)
+        if (basePlaneCount < 0)
+        {
+            planes.RemoveAll(p => p == null);
+            basePlaneCount = planes.Count;
+        }
+
+        SpawnUpgradePlanes();
+    }
+
+    // Nâng cấp Air đạt các bậc trong CarrierData.planeUnlockAirTiers (2.0, 4.0...) thì có thêm máy bay.
+    // Setup chạy lúc spawn tàu và mỗi lần mua nâng cấp, nên máy bay mới xuất hiện ngay và có lại ở round sau
+    private void SpawnUpgradePlanes()
+    {
+        BoatAIController ai = GetComponent<BoatAIController>();
+        if (ai == null || string.IsNullOrEmpty(ai.InstanceId))
+            return; // tàu địch / tàu không có tiến trình người chơi
+
+        int airLevel = GameData.GetUpgradeLevel(ai.InstanceId, StatType.Air);
+        int wanted = basePlaneCount + data.GetBonusPlanes(airLevel);
+
+        planes.RemoveAll(p => p == null);
+        while (planes.Count < wanted && AddPlaneFromUpgrade()) { }
     }
 
     public override void OnEnterCombat(Transform enemy)
@@ -54,8 +84,12 @@ public class CarrierCombat : BoatCombatBase
         {
             inCombat = true;
             combatTime = 0f;
-            smoothedDir = FlatForward();
+            Vector3 f = FlatForward();
+            smoothedHeading = Mathf.Atan2(f.x, f.z) * Mathf.Rad2Deg;
+            headingVelocity = 0f;
         }
+
+        steerEnemy = enemy;
 
         // Vào trận / đổi mục tiêu: chọn chiều lượn theo hướng tàu đang chạy (ít phải quay nhất),
         // không bắt tàu quay đầu ngược lại hay quay mũi về phía địch
@@ -66,6 +100,7 @@ public class CarrierCombat : BoatCombatBase
     public override void OnExitCombat()
     {
         inCombat = false;
+        steerEnemy = null;
     }
 
     private float ChooseOrbitDirection(Vector3 enemyPos)
@@ -80,19 +115,24 @@ public class CarrierCombat : BoatCombatBase
         return Vector3.Dot(FlatForward(), tangent) >= 0f ? 1f : -1f;
     }
 
-    // Hướng lái: ở xa thì đi tới điểm tiếp tuyến của vòng lượn, gần thì lượn tròn quanh địch ở bán kính keepDistance
-    private Vector3 GetCombatDirection(Transform enemy, Vector3 toEnemy, float dist, float keep)
+    // Hướng lái: lượn tròn quanh địch ở bán kính keep, lệch dần vào trong / ra ngoài theo sai số bán kính.
+    // Một công thức liên tục cho mọi khoảng cách (không có ngưỡng đổi chế độ) nên hướng không nhảy
+    // khi tàu dao động quanh mép vòng lượn
+    private Vector3 GetCombatDirection(Vector3 toEnemy, float dist, float keep)
     {
-        if (dist > keep * tangentApproachMultiplier)
-        {
-            // Góc lệch khỏi hướng tới địch để đường đi chỉ "chạm" vòng tròn bán kính keep
-            float alpha = Mathf.Asin(Mathf.Clamp01(keep / dist)) * Mathf.Rad2Deg;
-            // Chiều lượn +1 đi theo Cross(up, fromEnemy) = quay toEnemy sang trái (âm) khi nhìn từ trên
-            return Quaternion.AngleAxis(-alpha * orbitDirection, Vector3.up) * (toEnemy / dist);
-        }
+        if (dist < 0.01f || keep < 0.01f)
+            return FlatForward();
 
-        // Lượn tròn + tự kéo về đúng bán kính (quá gần thì hướng chéo ra ngoài, không quay đầu)
-        return GetOrbitDirection(enemy, keep, orbitDirection, data.radiusCorrection);
+        // Góc chếch vào phía địch so với tiếp tuyến (âm = chếch ra ngoài khi đang quá gần)
+        float error = Mathf.Max((dist - keep) / keep, -1f);
+        float inward = Mathf.Atan(error * data.radiusCorrection) * Mathf.Rad2Deg;
+
+        // Ở xa: không chếch quá đường tiếp tuyến của vòng lượn (không lái thẳng vào địch)
+        if (dist > keep)
+            inward = Mathf.Min(inward, 90f - Mathf.Asin(keep / dist) * Mathf.Rad2Deg);
+
+        // Chiều lượn +1 đi theo Cross(up, fromEnemy) = quay toEnemy sang trái (âm) khi nhìn từ trên
+        return Quaternion.AngleAxis(-(90f - inward) * orbitDirection, Vector3.up) * (toEnemy / dist);
     }
 
     private Vector3 FlatForward()
@@ -102,22 +142,25 @@ public class CarrierCombat : BoatCombatBase
         return f.sqrMagnitude > 0.0001f ? f.normalized : Vector3.forward;
     }
 
-    // Xoay dần hướng lái về hướng mong muốn với tốc độ giới hạn: đổi chế độ / đổi chiều lượn không làm hướng nhảy đột ngột
-    private void SteerSmooth(Vector3 desired)
+    // Lái trong FixedUpdate, cùng nhịp với BoatMovementController: nếu cập nhật hướng trong Update thì
+    // mỗi bước vật lý thấy hướng đổi 0, 1 hoặc 2 frame một lần -> tốc độ xoay bù trước bị nhiễu -> tàu giật
+    private void FixedUpdate()
     {
-        desired.y = 0f;
-        if (desired.sqrMagnitude < 0.0001f)
+        if (!inCombat || data == null || steerEnemy == null)
             return;
-        desired.Normalize();
 
-        if (smoothedDir.sqrMagnitude < 0.0001f)
-            smoothedDir = FlatForward();
+        Vector3 toEnemy = steerEnemy.position - transform.position;
+        toEnemy.y = 0f;
+        Vector3 desired = GetCombatDirection(toEnemy, toEnemy.magnitude, data.keepDistance);
+        float targetHeading = Mathf.Atan2(desired.x, desired.z) * Mathf.Rad2Deg;
 
-        float maxRad = maxHeadingChangeRate * Mathf.Deg2Rad * Time.deltaTime;
-        smoothedDir = Vector3.RotateTowards(smoothedDir, desired, maxRad, 0f);
-        smoothedDir.y = 0f;
-        smoothedDir.Normalize();
-        movement.Steer(smoothedDir);
+        // Làm mượt kiểu lò xo tắt dần: tốc độ xoay của hướng lái tăng/giảm từ từ (không bật/tắt tức thì),
+        // đổi mục tiêu / đổi chiều lượn không làm hướng nhảy đột ngột
+        smoothedHeading = Mathf.SmoothDampAngle(smoothedHeading, targetHeading, ref headingVelocity,
+                                                headingSmoothTime, maxHeadingChangeRate, Time.fixedDeltaTime);
+
+        float rad = smoothedHeading * Mathf.Deg2Rad;
+        movement.Steer(new Vector3(Mathf.Sin(rad), 0f, Mathf.Cos(rad)));
     }
 
     public override void Tick(Transform enemy)
@@ -127,13 +170,11 @@ public class CarrierCombat : BoatCombatBase
 
         combatTime += Time.deltaTime;
         movement.SetSpeedMultiplier(data.combatSpeedMultiplier);
+        steerEnemy = enemy;
 
         Vector3 toEnemy = enemy.position - transform.position;
         toEnemy.y = 0f;
         float dist = toEnemy.magnitude;
-        float keep = data.keepDistance;
-
-        SteerSmooth(GetCombatDirection(enemy, toEnemy, dist, keep));
 
         if (dist > detectRange)
             return;
@@ -185,6 +226,16 @@ public class CarrierCombat : BoatCombatBase
     {
         if (launchPoints == null || launchPoints.Length == 0)
             return transform;
+
+        // Ưu tiên điểm đỗ còn trống để máy bay mới không chồng lên máy bay đang đỗ
+        foreach (Transform free in launchPoints)
+        {
+            if (free != null && !usedDocks.Contains(free))
+            {
+                usedDocks.Add(free);
+                return free;
+            }
+        }
 
         for (int i = 0; i < launchPoints.Length; i++)
         {

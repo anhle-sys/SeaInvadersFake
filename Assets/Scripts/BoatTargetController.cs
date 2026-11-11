@@ -19,6 +19,7 @@ public class BoatTargetController : MonoBehaviour
 
     private Transform currentBoatTarget;
     private float searchTimer;
+    private bool hadTarget;
 
     private readonly Collider[] results = new Collider[50];
 
@@ -41,11 +42,16 @@ public class BoatTargetController : MonoBehaviour
             return;
         searchTimer += Time.deltaTime;
 
-        if (searchTimer < searchInterval)
+        // Mục tiêu vừa chết: tìm mục tiêu mới ngay, không để tàu quay về hướng trụ rồi lại quay ra (giật hướng)
+        bool lostTarget = hadTarget
+                          && (currentBoatTarget == null || !currentBoatTarget.gameObject.activeInHierarchy);
+
+        if (searchTimer < searchInterval && !lostTarget)
             return;
 
         searchTimer = 0f;
         FindEnemyBoat();
+        hadTarget = currentBoatTarget != null;
     }
 
     private void FindEnemyBoat()

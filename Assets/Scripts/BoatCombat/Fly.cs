@@ -46,8 +46,12 @@ public class Fly : MonoBehaviour
     [SerializeField] private float fireConeAngle = 25f;
     [Tooltip("Bắt đầu bổ nhào khi cách mục tiêu (planeAttackRange × hệ số này)")]
     [SerializeField] private float diveStartMultiplier = 2.5f;
-    [Tooltip("Bay ra xa tới (bán kính cua × hệ số này) rồi mới vòng lại đánh tiếp")]
-    [SerializeField] private float extendTurnRadiusMultiplier = 3f;
+    [Tooltip("Bay ra xa tới (bán kính cua × hệ số này) rồi mới vòng lại đánh tiếp. Nhỏ = bám sát địch hơn")]
+    [SerializeField] private float extendTurnRadiusMultiplier = 2f;
+    [Tooltip("Khi vòng lại (mũi còn lệch xa mục tiêu) cua gắt hơn bình thường bấy nhiêu lần")]
+    [SerializeField] private float repositionTurnBoost = 1.8f;
+    [Tooltip("Tốc độ còn lại khi đang lao vào bắn (0..1). Nhỏ = ở trên mục tiêu lâu hơn, bắn được nhiều phát hơn mỗi lượt")]
+    [Range(0.3f, 1f)][SerializeField] private float attackRunSpeedFactor = 0.65f;
     [Tooltip("Mất dấu địch quá thời gian này mới quay về tàu (giây). Tránh bay qua bay lại khi địch ở mép tầm phát hiện")]
     [SerializeField] private float lostTargetGraceTime = 1f;
 
@@ -262,7 +266,8 @@ public class Fly : MonoBehaviour
         float dist = toTarget.magnitude;
         float angle = Vector3.Angle(flatForward, toTarget);
 
-        float extendDist = Mathf.Max(data.planeAttackRange * 1.5f, TurnRadius * extendTurnRadiusMultiplier);
+        // Chỉ bay ra vừa đủ xa để vòng lại là thẳng hàng với mục tiêu, không bay lan ra ngoài trận
+        float extendDist = Mathf.Max(data.planeAttackRange * 1.2f, TurnRadius * extendTurnRadiusMultiplier);
         if (!extending && dist < TurnRadius * 1.5f && angle > 70f)
             extending = true;
         else if (extending && dist > extendDist)
@@ -280,7 +285,15 @@ public class Fly : MonoBehaviour
         diveT *= Mathf.InverseLerp(60f, 20f, angle);
         float targetY = Mathf.Lerp(CruiseY, AttackY, diveT);
 
-        flatForward = FlyMove(dt, toTarget, targetY, data.planeSpeed, 1f);
+        // Vòng lại: mũi còn lệch xa mục tiêu thì cua gắt để quay về nhanh; đã hướng vào mục tiêu thì lái bình thường
+        float turnBoost = Mathf.Lerp(1f, repositionTurnBoost, Mathf.InverseLerp(30f, 90f, angle));
+
+        // Lao vào bắn: chậm lại khi đã thẳng hàng và sắp vào tầm để ở trên mục tiêu lâu hơn
+        float runT = Mathf.InverseLerp(data.planeAttackRange * 1.5f, data.planeAttackRange, dist)
+                     * Mathf.InverseLerp(60f, 20f, angle);
+        float runSpeed = data.planeSpeed * Mathf.Lerp(1f, attackRunSpeedFactor, runT);
+
+        flatForward = FlyMove(dt, toTarget, targetY, runSpeed, turnBoost);
         TryAttack(flatForward, toTarget);
     }
 

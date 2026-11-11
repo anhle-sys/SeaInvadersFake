@@ -28,7 +28,7 @@ MonoBehaviour:
   upgrades:
   - stat: 5
     bonusPerLevel: 2
-    maxLevel: 10
+    maxLevel: 12
     baseCost: 100
     costGrowth: 1.15
   - stat: 2

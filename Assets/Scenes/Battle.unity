@@ -11388,14 +11388,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CarrierUpgratePopup
   airLevelText: {fileID: 1948691333}
   airImage: {fileID: 2140707244}
-  coinCostAir: {fileID: 1878572350}
+  coinCostAir: {fileID: 0}
   upgrateAirButton: {fileID: 441405489}
   criticalStatus: {fileID: 703661652}
   criticalButton: {fileID: 961884573}
-  coinCostCritical: {fileID: 654163088}
+  coinCostCritical: {fileID: 0}
   evasionStatus: {fileID: 457219830}
   evasionButton: {fileID: 2125871597}
-  coinCostEvasion: {fileID: 740100266}
+  coinCostEvasion: {fileID: 0}
 --- !u!114 &1215453960
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -14572,8 +14572,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1526502829}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.17421904, y: -0.71000993, z: 0.1659921, w: 0.66180086}
-  m_LocalPosition: {x: 71.9, y: 52.4, z: 4.7}
+  m_LocalRotation: {x: 0.2704248, y: -0.6741073, z: 0.27109087, w: 0.63163245}
+  m_LocalPosition: {x: 55, y: 56, z: 3.2}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -15161,14 +15161,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BangerUpgratePopup
   explosiveLevelText: {fileID: 910090987}
   explosiveImage: {fileID: 667534996}
-  coinCostExplosive: {fileID: 353934610}
+  coinCostExplosive: {fileID: 0}
   upgrateExplosiveButton: {fileID: 604220938}
   criticalStatus: {fileID: 1447831992}
   criticalButton: {fileID: 392599721}
-  coinCostCritical: {fileID: 2074796227}
+  coinCostCritical: {fileID: 0}
   evasionStatus: {fileID: 455014342}
   evasionButton: {fileID: 1987019707}
-  coinCostEvasion: {fileID: 1045111437}
+  coinCostEvasion: {fileID: 0}
 --- !u!1 &1581127271
 GameObject:
   m_ObjectHideFlags: 0
@@ -18234,9 +18234,21 @@ MonoBehaviour:
   focusViewportY: 0.68
   focusDuration: 0.6
   idleFOV: 33
-  battleFOV: 41
+  battleFOV: 54
   upgradeFOV: 33
   fovDuration: 0.8
+  waterHeight: 0
+  viewMarginX: 0.05
+  viewMarginY: 0.03
+  maxViewDistance: 170
+  boundsPadding: 2
+  boundsSoftMargin: 4
+  followBattle: 1
+  trackPadding: 5
+  trackScreenMargin: 0.08
+  trackMinHeight: 32
+  trackMaxHeight: 80
+  trackSmoothTime: 0.7
 --- !u!1 &1972066484
 GameObject:
   m_ObjectHideFlags: 0

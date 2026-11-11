@@ -7,6 +7,24 @@ public class CarrierData : BoatData
     public GameObject planePrefab;
     public GameObject planeBulletPrefab;
     public int maxPlanes = 3;
+    [Tooltip("Nâng cấp Air đạt mỗi bậc trong danh sách này (bậc hiển thị trên popup: 2 = 2.0, 4 = 4.0) " +
+             "thì tàu có thêm 1 máy bay")]
+    public int[] planeUnlockAirTiers = { 2, 4 };
+
+    // Số máy bay được thêm nhờ nâng cấp Air. airLevel = số lần đã nâng (GameData.GetUpgradeLevel)
+    public int GetBonusPlanes(int airLevel)
+    {
+        StatUpgrade air = GetUpgrade(StatType.Air);
+        if (air == null || planeUnlockAirTiers == null)
+            return 0;
+
+        int tier = air.GetTier(airLevel);
+        int count = 0;
+        foreach (int unlock in planeUnlockAirTiers)
+            if (tier >= unlock)
+                count++;
+        return count;
+    }
     public int planesPerLaunch = 1;
     public float launchInterval = 4f;
 

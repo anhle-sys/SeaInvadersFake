@@ -19,6 +19,7 @@ public class BoatMovementController : MonoBehaviour
 
     private Rigidbody rb;
     private BoatSteeringSensors sensors;
+    private BattleBounds bounds;
     private Vector3 desiredDirection;
     private bool hasInput;
     private float speedMultiplier = 1f;
@@ -157,6 +158,9 @@ public class BoatMovementController : MonoBehaviour
         if (!started)
             return;
 
+        CameraController cameraController = GameController.Instance.CameraController;
+        bounds = cameraController != null ? cameraController.BattleBounds : null;
+
         float dt = Time.fixedDeltaTime;
         BoatHandlingProfile p = profile;
         Vector3 forward = rb.rotation * Vector3.forward;
@@ -195,6 +199,9 @@ public class BoatMovementController : MonoBehaviour
         // Vận tốc: dọc thân = currentSpeed, ngang thì tắt dần (trôi nhẹ khi cua/va chạm)
         lateral *= Mathf.Exp(-p.lateralGrip * dt);
         Vector3 v = newRotation * Vector3.forward * currentSpeed + newRotation * Vector3.right * lateral;
+        // Không cho tàu chạy ra khỏi tầm nhìn của camera trận đấu
+        if (bounds != null)
+            v = bounds.ClampVelocity(rb.position, v);
         rb.linearVelocity = new Vector3(v.x, velocity.y, v.z);
     }
 
@@ -212,6 +219,10 @@ public class BoatMovementController : MonoBehaviour
             if (blended.sqrMagnitude > 0.0001f)
                 dir = blended.normalized;
         }
+
+        // Gần mép tầm nhìn: bẻ lái quay vào trong
+        if (bounds != null)
+            dir = bounds.SteerInside(rb.position, dir);
 
         float angle = Vector3.SignedAngle(forward, dir, Vector3.up);
 
