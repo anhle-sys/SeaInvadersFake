@@ -6,6 +6,9 @@ public enum BoatTeam
     Enemy
 }
 
+// Chạy trước BoatAIController / BoatAimController: mục tiêu vừa chết thì tìm mục tiêu mới ngay trong frame đó,
+// AI không bị rơi về trạng thái "chạy về trụ" 1 frame rồi mới vào combat lại (giật hướng, reset logic vào trận)
+[DefaultExecutionOrder(-50)]
 public class BoatTargetController : MonoBehaviour
 {
     [Header("Team")]
@@ -25,12 +28,19 @@ public class BoatTargetController : MonoBehaviour
 
     public BoatTeam Team => team;
 
-    public Transform CurrentTarget =>
-    currentBoatTarget != null
-        ? currentBoatTarget
-        : Team == BoatTeam.Ally
-            ? GameController.Instance.enemyTower
-            : GameController.Instance.allyTower;
+    public Transform CurrentTarget
+    {
+        get
+        {
+            if (currentBoatTarget != null)
+                return currentBoatTarget;
+
+            GameController gc = GameController.Instance;
+            if (gc == null)
+                return null;
+            return Team == BoatTeam.Ally ? gc.enemyTower : gc.allyTower;
+        }
+    }
 
     public bool HasBoatTarget => currentBoatTarget != null;
 
@@ -38,7 +48,7 @@ public class BoatTargetController : MonoBehaviour
 
     private void Update()
     {
-        if (!GameController.Instance.IsBattleStarted)
+        if (!GameController.BattleStarted)
             return;
         searchTimer += Time.deltaTime;
 
@@ -56,13 +66,7 @@ public class BoatTargetController : MonoBehaviour
 
     private void FindEnemyBoat()
     {
-        int count = Physics.OverlapSphereNonAlloc(
-            transform.position,
-            searchRadius,
-            results,
-            boatLayer
-        );
-
+        // Còn giữ mục tiêu cũ thì khỏi quét vật lý (trước đây quét xong mới kiểm tra -> quét thừa)
         if (currentBoatTarget != null &&
         currentBoatTarget.gameObject.activeInHierarchy)
         {
@@ -72,6 +76,13 @@ public class BoatTargetController : MonoBehaviour
             if (keepDistance <= searchRadius * loseTargetMultiplier)
                 return;
         }
+
+        int count = Physics.OverlapSphereNonAlloc(
+            transform.position,
+            searchRadius,
+            results,
+            boatLayer
+        );
 
         Transform nearestTarget = null;
         float nearestDistance = float.MaxValue;

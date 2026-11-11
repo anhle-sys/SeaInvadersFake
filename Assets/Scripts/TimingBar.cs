@@ -37,7 +37,7 @@ public class TimingBar : MonoBehaviour
         arrowTween?.Kill();
 
         n = 0f;
-        float oneWayDuration = 1f / (speed * 2f);
+        float oneWayDuration = 1f / (Mathf.Max(speed, 0.01f) * 2f);   // speed = 0 -> chia cho 0
 
         arrowTween = DOTween.To(() => n, x =>
         {

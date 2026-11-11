@@ -48,7 +48,7 @@ public void Show(BoatSelection selection)
 
         // Chỉ nâng cấp trong pha chuẩn bị
         GameController gc = GameController.Instance;
-        if (gc == null || gc.IsBattleStarted)
+        if (gc == null || !GameController.CanPrepare)
             return;
 
         selectedData = selection.Data;

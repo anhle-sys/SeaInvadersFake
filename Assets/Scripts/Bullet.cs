@@ -121,8 +121,15 @@ public class Bullet : MonoBehaviour
 
     private void Despawn()
     {
-        rb.linearVelocity = Vector3.zero;
-        rb.angularVelocity = Vector3.zero;
+        // Đạn hết giờ mà chưa từng được Init (rb chưa gán) thì vẫn trả về pool được
+        if (rb == null)
+            rb = GetComponent<Rigidbody>();
+
+        if (!rb.isKinematic)
+        {
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
 
         SimplePool2.Despawn(gameObject);
     }

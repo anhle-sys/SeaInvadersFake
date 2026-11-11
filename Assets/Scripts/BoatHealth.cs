@@ -23,6 +23,13 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
     public bool IsDead => isDead;
     public Vector3 BarWorldPosition => transform.position + barOffset;
 
+    private void Awake()
+    {
+        // Quên kéo tham chiếu trong Inspector thì tự lấy, tránh NullReference ở Team / IsAlly
+        if (targetController == null)
+            targetController = GetComponent<BoatTargetController>();
+    }
+
     public void Setup(BoatData boatData, BoatStats boatStats)
     {
         data = boatData;

@@ -15,12 +15,15 @@ public class WorldClickHandler : MonoBehaviour
     private void OnEnable()
     {
         mainCamera = mainCamera != null ? mainCamera : Camera.main;
-        clickAction.action.Enable();
+        if (clickAction != null)
+            clickAction.action.Enable();
+        else
+            Debug.LogError($"{name}: chưa gán clickAction cho WorldClickHandler.", this);
     }
 
     private void Update()
     {
-        if(GameController.Instance == null || GameController.Instance.IsBattleStarted)
+        if (!GameController.CanPrepare || clickAction == null)
             return;
         // Action "Click" là PassThrough: WasPerformedThisFrame() đúng cả lúc nhấn lẫn lúc thả -> click bị xử lý 2 lần.
         // Chỉ xử lý lúc nhấn.

@@ -23,7 +23,7 @@ public class BoatSteeringSensors
     private const float HeadOnDriftThreshold = 0.05f; // vận tốc tương đối ngang dưới mức này coi như đối đầu thẳng hàng        // đồng đội hướng mũi về phía mình trong góc này (cos) thì coi là chắn nhau trực diện
     private const float AheadMinRatio = 0.6f;       // điểm của đồng đội phải ở trước tâm tàu quá (nửa chiều dài × hệ số này) mới coi là chắn mũi    // điểm gần nhất của đồng đội lệch khỏi trục tàu quá (nửa bề ngang × hệ số này) thì trườn qua được         // đồng đội chạy ngang nhanh hơn mức này thì coi là đang băng qua       // đồng đội đã chốt mạn vượt còn trong (tầm nhìn + khoảng này) thì vẫn nhớ
 
-    private readonly Collider[] avoidanceHits = new Collider[16];
+    private readonly Collider[] avoidanceHits = new Collider[32];   // 16 dễ tràn khi nhiều tàu dồn lại -> bỏ sót tàu gần nhất
     private Collider passCollider;                  // đồng đội đang vòng qua
     private float passSide;                         // +1: vượt sang phải, -1: sang trái
     private bool passHasPriority;                   // mình là tàu được đi trước khi vượt đồng đội này

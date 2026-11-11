@@ -145,7 +145,7 @@ public class BoatMovementController : MonoBehaviour
 
     private void FixedUpdate()
     {
-        bool started = GameController.Instance.IsBattleStarted;
+        bool started = GameController.BattleStarted;
 
         if (started != wasBattleStarted)
         {

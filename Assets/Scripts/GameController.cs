@@ -26,6 +26,13 @@ public class GameController : MonoBehaviour
     [SerializeField] private Image imageBuff;
     [SerializeField] private GameObject botUI;
     public bool IsBattleStarted;
+    private bool fightPending;   // đã bấm Fight, đang chờ hiệu ứng buff trước khi vào trận
+
+    // An toàn khi chưa có / đã hủy GameController (đổi scene, test prefab ở scene khác)
+    public static bool BattleStarted => Instance != null && Instance.IsBattleStarted;
+    // Còn được mua tàu / nâng cấp: chưa vào trận và chưa bấm Fight
+    public static bool CanPrepare => Instance != null && !Instance.IsBattleStarted && !Instance.fightPending;
+
     public static event Action OnBattleStarted;
     [Header("Spawn Slots")]
     [SerializeField] private SpawnSlot[] spawnSlots;
@@ -173,18 +180,31 @@ public class GameController : MonoBehaviour
 
     private void OnFightClicked()
     {
+        if (IsBattleStarted || fightPending)
+            return;
+
+        fightPending = true;   // khóa mua tàu / nâng cấp trong lúc chờ vào trận
         fightBtn.interactable = false;
 
-        BuffZone zone = timingBar.StopAndGetZone();
+        BuffZone zone = timingBar != null ? timingBar.StopAndGetZone() : null;
         ShowImageBuff();
         GoldBuff.Set(zone != null ? zone.buffValue : 1f);
-        DOVirtual.DelayedCall(0.75f, () => StartGame());
-        
+        // SetLink: GameController bị hủy (đổi scene) thì không gọi StartGame trên object đã chết
+        DOVirtual.DelayedCall(0.75f, StartGame).SetLink(gameObject);
     }
     public void StartGame()
     {
         if (IsBattleStarted)
             return;
+
+        // Popup nâng cấp / mua tàu còn mở thì đóng lại, không để nó treo trên màn hình trong trận
+        if (popupManager != null)
+        {
+            if (popupManager.UpgratePopup != null && popupManager.UpgratePopup.IsOpen)
+                popupManager.UpgratePopup.Hide();
+            if (popupManager.PurchasePopup != null && popupManager.PurchasePopup.IsOpen)
+                popupManager.PurchasePopup.Hide();
+        }
 
         IsBattleStarted = true;
         state = GameState.Battle;
@@ -195,17 +215,22 @@ public class GameController : MonoBehaviour
     }
     private void ShowImageBuff()
     {
+        if (imageBuff == null)
+            return;
+
         imageBuff.gameObject.SetActive(true);
 
         imageBuff.transform.localScale = Vector3.zero;
 
         imageBuff.transform.DOScale(Vector3.one, 0.3f)
             .SetEase(Ease.OutBack)
+            .SetLink(imageBuff.gameObject)
             .OnComplete(() =>
             {
                 imageBuff.transform.DOScale(Vector3.zero, 0.2f)
                     .SetDelay(0.5f)
                     .SetEase(Ease.InBack)
+                    .SetLink(imageBuff.gameObject)
                     .OnComplete(() =>
                     {
                         imageBuff.gameObject.SetActive(false);

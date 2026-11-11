@@ -308,6 +308,13 @@ public class GunnerCombat : BoatCombatBase, IBoatMovementModifier
             return;
 
         attackTimer = data.attackCooldown;
+
+        if (data.bulletPrefab == null)
+        {
+            Debug.LogWarning($"{data.name}: chưa gán bulletPrefab, tàu không bắn được.", data);
+            return;
+        }
+
         StartCoroutine(FireVolley(enemy, new List<Transform>(aimController.ReadyCannons)));
     }
 
@@ -324,7 +331,7 @@ public class GunnerCombat : BoatCombatBase, IBoatMovementModifier
             {
                 Rigidbody enemyRb = enemy.GetComponent<Rigidbody>();
                 Vector3 enemyVelocity = enemyRb != null ? enemyRb.linearVelocity : Vector3.zero;
-                b.Init(targetController.Team, enemy.position, enemyVelocity, stats.RollDamage());
+                b.Init(targetController.Team, enemy.position, enemyVelocity, stats != null ? stats.RollDamage() : 0f);
             }
 
             if (data.volleyDelay > 0f)

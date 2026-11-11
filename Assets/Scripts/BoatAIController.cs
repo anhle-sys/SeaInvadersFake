@@ -27,6 +27,8 @@ public class BoatAIController : MonoBehaviour
     public string InstanceId { get; private set; }
 
     private Transform combatTarget;
+    private Transform cachedTower;
+    private Collider towerCollider;
 
     private void Awake()
     {
@@ -107,10 +109,8 @@ public void Initialize(BoatData boatData, string instanceId = null)
         if (!initialized || combat == null)
             return;
 
-        if (!GameController.Instance.IsBattleStarted)
-        {
+        if (!GameController.BattleStarted)
             return;
-        }
 
         State desired = targetController.HasBoatTarget ? State.Combat : State.MoveToTower;
 
@@ -169,7 +169,12 @@ public void Initialize(BoatData boatData, string instanceId = null)
         Vector3 point = tower.position;
         float stopDistance = towerStoppingDistance;
 
-        Collider towerCollider = tower.GetComponentInChildren<Collider>();
+        // Chỉ tìm collider khi đổi trụ, không GetComponentInChildren mỗi frame
+        if (tower != cachedTower)
+        {
+            cachedTower = tower;
+            towerCollider = tower.GetComponentInChildren<Collider>();
+        }
         if (towerCollider != null)
             point = towerCollider.bounds.ClosestPoint(transform.position);
 

@@ -72,7 +72,7 @@ public class BangerCombat : BoatCombatBase, IBoatMovementModifier
 
     private void TryExplodeOnContact(Collision collision)
     {
-        if (data == null || exploded || !GameController.Instance.IsBattleStarted)
+        if (data == null || exploded || !GameController.BattleStarted)
             return;
 
         BoatTargetController other = collision.collider.GetComponentInParent<BoatTargetController>();

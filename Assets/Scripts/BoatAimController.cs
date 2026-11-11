@@ -27,12 +27,9 @@ public class BoatAimController : MonoBehaviour
 
     private void Update()
     {
-        if (!GameController.Instance.IsBattleStarted)
-        {
-            readyCannons.Clear();
-            return;
-        }
         readyCannons.Clear();
+        if (!GameController.BattleStarted)
+            return;
 
         Transform target = targetController.CurrentBoatTarget;
         if (target == null)
