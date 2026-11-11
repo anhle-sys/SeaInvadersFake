@@ -78,6 +78,18 @@ public class CarrierCombat : BoatCombatBase
         while (planes.Count < wanted && AddPlaneFromUpgrade()) { }
     }
 
+    // Tàu sân bay bị hủy: hủy luôn các máy bay của nó. Máy bay đang đỗ là con của tàu nên tự mất theo,
+    // còn máy bay đang bay đã tách khỏi tàu nên phải hủy riêng
+    private void OnDestroy()
+    {
+        if (!gameObject.scene.isLoaded)
+            return; // đang đổi scene: mọi thứ tự bị hủy
+
+        foreach (Fly plane in planes)
+            if (plane != null)
+                Destroy(plane.gameObject);
+    }
+
     public override void OnEnterCombat(Transform enemy)
     {
         if (!inCombat)

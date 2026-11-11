@@ -18,7 +18,7 @@ MonoBehaviour:
   cost: 100
   killReward: 50
   handlingProfile: {fileID: 11400000, guid: 09576ae8ae2e434cb614623149c1878b, type: 2}
-  detectionRadius: 15
+  detectionRadius: 24
   levels:
   - prefab: {fileID: 5261690935475611637, guid: 23fe9718e2d1d6444a0e617822606951, type: 3}
     damage: 10
@@ -48,7 +48,7 @@ MonoBehaviour:
   launchInterval: 4
   planeSpeed: 8
   planeTurnSpeed: 120
-  planeLifetime: 15
+  planeLifetime: 9
   planeAttackRange: 6
   planeAttackInterval: 1
   keepDistance: 12

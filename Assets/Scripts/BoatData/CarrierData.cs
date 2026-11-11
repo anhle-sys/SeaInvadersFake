@@ -31,7 +31,7 @@ public class CarrierData : BoatData
     [Header("Plane")]
     public float planeSpeed = 8f;
     public float planeTurnSpeed = 120f;
-    public float planeLifetime = 15f;
+    public float planeLifetime = 9f;
     public float planeAttackRange = 6f;
     public float planeAttackInterval = 1f;
 
