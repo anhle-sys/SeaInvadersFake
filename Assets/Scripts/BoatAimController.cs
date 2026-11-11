@@ -11,7 +11,7 @@ public class BoatAimController : MonoBehaviour
     [SerializeField] private Transform[] cannons;
 
     [Header("Aim Cone")]
-    [Tooltip("Nửa góc của hình nón (độ), đo từ hướng nòng pháo. Góc nón tổng = 2 × giá trị này.")]
+    [Tooltip("Nửa góc của hình nón (độ), đo từ hướng nòng pháo. Được ghi đè bằng GunnerData.fireArcHalfAngle qua Configure.")]
     [FormerlySerializedAs("aimTolerance")]
     [SerializeField] private float coneHalfAngle = 10f;
 
@@ -26,9 +26,10 @@ public class BoatAimController : MonoBehaviour
     public IReadOnlyList<Transform> ReadyCannons => readyCannons;
     public bool IsAimingAtTarget => readyCannons.Count > 0;
 
-    public void Configure(float attackRange)
+    public void Configure(float attackRange, float halfAngle)
     {
         coneRange = attackRange * 1.1f;
+        coneHalfAngle = halfAngle;
     }
 
     private void Update()
@@ -73,13 +74,23 @@ public class BoatAimController : MonoBehaviour
         if (toNearest.sqrMagnitude > coneRange * coneRange)
             return false;
 
-        // Góc tính theo tâm tàu địch
+        // Góc tính theo tâm tàu địch, nới thêm nửa bề rộng góc của thân tàu địch:
+        // chỉ cần một phần thân tàu nằm trong nón là bắn được (trước đây tâm phải lọt nón -> thấy địch mà không bắn)
         Vector3 toTarget = target.position - origin;
         toTarget.y = 0f;
-        if (toTarget.sqrMagnitude < 0.001f)
+        float distance = toTarget.magnitude;
+        if (distance < 0.03f)
             return true;
 
-        return Vector3.Angle(forward, toTarget) <= coneHalfAngle;
+        float hullAngle = 0f;
+        if (cachedCollider != null)
+        {
+            Vector3 ext = cachedCollider.bounds.extents;
+            float hullRadius = Mathf.Min(ext.x, ext.z);   // lấy cạnh ngắn: không nới quá tay với tàu dài
+            hullAngle = Mathf.Atan2(hullRadius, distance) * Mathf.Rad2Deg;
+        }
+
+        return Vector3.Angle(forward, toTarget) <= coneHalfAngle + hullAngle;
     }
 
     private void OnDrawGizmos()

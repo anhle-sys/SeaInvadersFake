@@ -26,6 +26,10 @@ public class BoatAIController : MonoBehaviour
     // Id riêng của từng tàu người chơi (mỗi lần mua một id) để nâng cấp không dùng chung giữa các tàu cùng loại
     public string InstanceId { get; private set; }
 
+    private const float IdleSpeed = 0.3f;        // chạy chậm hơn mức này coi như đang đứng yên
+    private const float IdleHuntDelay = 3f;      // đứng yên bao lâu (khi chưa tới trụ) thì chuyển sang đi săn địch
+    private float idleTimer;
+
     private Transform combatTarget;
     private Transform cachedTower;
     private Collider towerCollider;
@@ -92,6 +96,8 @@ public class BoatAIController : MonoBehaviour
 
         stats = BoatStats.Create(data, usePlayerProgress, InstanceId);
 
+        targetController.HuntAnywhere = false;
+        idleTimer = 0f;
         movement.ApplyLevel(data, stats.Level);
         targetController.Configure(data.detectionRadius);
 
@@ -161,6 +167,7 @@ public class BoatAIController : MonoBehaviour
         if (tower == null)
         {
             movement.Stop();
+            targetController.HuntAnywhere = true;
             return;
         }
 
@@ -183,6 +190,12 @@ public class BoatAIController : MonoBehaviour
             stopDistance += Mathf.Max(ext.x, ext.z);
         }
 
-        movement.MoveTowards(point, stopDistance);
+        bool arrived = movement.MoveTowards(point, stopDistance);
+
+        // Tới trụ rồi (hoặc bị chặn đứng yên mãi không tới được) mà trận chưa xong: đi săn tàu địch còn lại,
+        // nếu không hai bên đứng ở trụ của nhau mãi và trận không bao giờ kết thúc
+        idleTimer = movement.CurrentSpeed < IdleSpeed ? idleTimer + Time.deltaTime : 0f;
+        if (arrived || idleTimer >= IdleHuntDelay)
+            targetController.HuntAnywhere = true;
     }
 }

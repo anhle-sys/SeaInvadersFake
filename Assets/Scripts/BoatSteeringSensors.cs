@@ -56,7 +56,7 @@ public class BoatSteeringSensors
 
     // Bật né tàu địch (Gunner bật; Banger để tắt vì nó lao vào địch)
     public bool AvoidEnemies { get; set; }
-    // Mục tiêu đang combat: không né, không phanh (Gunner lượn quanh nó)
+    // Mục tiêu đang combat: chỉ phanh khi nó chắn mũi, không vòng qua / không đẩy ra (Gunner lượn quanh nó)
     public Transform IgnoreEnemy { get; set; }
 
     public float EnemyAheadFree { get; private set; } = float.MaxValue;
@@ -149,10 +149,12 @@ public class BoatSteeringSensors
 
             if (other.Team != teamSource.Team)
             {
-                if (!AvoidEnemies || other.transform == IgnoreEnemy)
+                if (!AvoidEnemies)
                     continue;
+                // Mục tiêu đang đánh: chỉ phanh khi nó chắn mũi; không vòng qua, không tính chắn mạn
+                // (tàu tự lượn quanh nó, né thêm sẽ giằng co với quỹ đạo lượn)
                 SenseEnemy(col, pos, forward, right, velocity, halfLength, halfWidth,
-                           laneRange, sideRadius, ref rightBlock, ref leftBlock);
+                           laneRange, sideRadius, other.transform == IgnoreEnemy, ref rightBlock, ref leftBlock);
                 continue;   // enemy không đi vào Avoidance (đẩy ra) của ally
             }
 
@@ -335,7 +337,7 @@ public class BoatSteeringSensors
         return limit;
     }
     private void SenseEnemy(Collider col, Vector3 pos, Vector3 forward, Vector3 right, Vector3 velocity,
-                        float halfLength, float halfWidth, float laneRange, float sideRadius,
+                        float halfLength, float halfWidth, float laneRange, float sideRadius, bool isCombatTarget,
                         ref float rightBlock, ref float leftBlock)
     {
         Vector3 closest = col.ClosestPoint(pos);
@@ -351,7 +353,7 @@ public class BoatSteeringSensors
         }
         Vector3 toOther = -away / dist;
 
-        if (dist < sideRadius && Vector3.Dot(forward, toOther) > -0.5f)
+        if (!isCombatTarget && dist < sideRadius && Vector3.Dot(forward, toOther) > -0.5f)
         {
             float side = Vector3.Dot(toOther, right);
             float w = 1f - dist / sideRadius;
@@ -374,8 +376,11 @@ public class BoatSteeringSensors
         {
             EnemyAheadFree = laneFree;
             EnemyAheadClosing = -Vector3.Dot(otherVelocity, forward);
-            enemyAheadCollider = col;
-            enemyAheadLateral = Vector3.Dot(col.bounds.center - pos, right);
+            if (!isCombatTarget)
+            {
+                enemyAheadCollider = col;
+                enemyAheadLateral = Vector3.Dot(col.bounds.center - pos, right);
+            }
         }
     }
 }

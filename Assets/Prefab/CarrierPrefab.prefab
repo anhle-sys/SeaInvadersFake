@@ -692,9 +692,9 @@ MonoBehaviour:
   - {fileID: 4189564971754507990}
   detectRange: 30
   maxHeadingChangeRate: 30
+  headingSmoothTime: 0.6
   planes:
   - {fileID: 5348083025112541068}
-  tangentApproachMultiplier: 1.15
   launchStagger: 0.6
 --- !u!114 &3066558370800273956
 MonoBehaviour:
@@ -722,6 +722,7 @@ MonoBehaviour:
   flashIntensity: 0.6
   flashDuration: 0.16
   hitVfxPrefab: {fileID: 4824146226635218643, guid: d5517b12b672a3b439cf0239de055a26, type: 3}
+  woodVfxPrefab: {fileID: 6612846930504106706, guid: 6c4cbdb92e81876459da7127b49f7346, type: 3}
 --- !u!114 &4411018489052798007
 MonoBehaviour:
   m_ObjectHideFlags: 0

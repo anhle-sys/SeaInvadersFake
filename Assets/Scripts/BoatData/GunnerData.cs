@@ -11,6 +11,9 @@ public class GunnerData : BoatData
     public float attackCooldown = 2f;
     public float volleyDelay = 0.12f;
     public CannonSide cannonSide = CannonSide.Both;
+    [Tooltip("Nửa góc bắn của pháo mạn (độ), tính từ hướng ngang hông. Địch lệch khỏi ngang hông trong góc này là bắn được. " +
+             "Nhỏ = phải xoay đúng ngang hông mới bắn (hay bị 'thấy địch mà không bắn' khi hai tàu lượn quanh nhau)")]
+    [Range(5f, 90f)] public float fireArcHalfAngle = 45f;
 
     [Header("Combat Movement")]
     [Range(0.05f, 1f)] public float combatSpeedMultiplier = 0.4f;

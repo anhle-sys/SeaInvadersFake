@@ -24,6 +24,17 @@ public class BoatTargetController : MonoBehaviour
 
     private readonly Collider[] results = new Collider[50];
 
+    // Mọi tàu đang hoạt động, để tìm địch trên cả bản đồ mà không phải FindObjects mỗi lần
+    private static readonly System.Collections.Generic.List<BoatTargetController> activeBoats =
+        new System.Collections.Generic.List<BoatTargetController>();
+
+    // Bật khi tàu đã tới trụ / hết việc: không thấy địch trong searchRadius thì đi săn tàu địch gần nhất trên cả bản đồ.
+    // Không có cái này, hai bên có thể đứng ở trụ của nhau mãi mà không bao giờ thấy nhau -> trận không kết thúc
+    public bool HuntAnywhere { get; set; }
+
+    private void OnEnable() => activeBoats.Add(this);
+    private void OnDisable() => activeBoats.Remove(this);
+
     public BoatTeam Team => team;
 
     public Transform CurrentTarget
@@ -113,6 +124,22 @@ public class BoatTargetController : MonoBehaviour
             {
                 nearestDistance = distance;
                 nearestTarget = other.transform;
+            }
+        }
+
+        if (nearestTarget == null && HuntAnywhere)
+        {
+            foreach (BoatTargetController other in activeBoats)
+            {
+                if (other == null || other == this || other.Team == Team)
+                    continue;
+
+                float distance = Vector3.Distance(transform.position, other.transform.position);
+                if (distance < nearestDistance)
+                {
+                    nearestDistance = distance;
+                    nearestTarget = other.transform;
+                }
             }
         }
 

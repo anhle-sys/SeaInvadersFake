@@ -280,6 +280,7 @@ MonoBehaviour:
   flashIntensity: 0.6
   flashDuration: 0.16
   hitVfxPrefab: {fileID: 4824146226635218643, guid: d5517b12b672a3b439cf0239de055a26, type: 3}
+  woodVfxPrefab: {fileID: 6612846930504106706, guid: 6c4cbdb92e81876459da7127b49f7346, type: 3}
 --- !u!114 &6909268774746980960
 MonoBehaviour:
   m_ObjectHideFlags: 0

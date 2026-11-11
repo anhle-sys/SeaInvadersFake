@@ -41,6 +41,8 @@ public class BoatVisualFx : MonoBehaviour
     [Header("VFX va chạm")]
     [Tooltip("Prefab mảnh vụn / tia lửa tại điểm trúng (dùng pool)")]
     [SerializeField] private GameObject hitVfxPrefab;
+    [Tooltip("Prefab mảnh gỗ văng ra tại điểm trúng (dùng pool). Trục Z của prefab hướng ra ngoài thân tàu")]
+    [SerializeField] private GameObject woodVfxPrefab;
 
     private BoatMovementController movement;
     private BoatHealth health;
@@ -193,7 +195,7 @@ public class BoatVisualFx : MonoBehaviour
 
     private void SpawnHitVfx(Vector3 sourcePosition)
     {
-        if (hitVfxPrefab == null)
+        if (hitVfxPrefab == null && woodVfxPrefab == null)
             return;
 
         // Điểm trúng: điểm gần nguồn nhất trên thân tàu (vụ nổ ở xa thì vẫn nổ trên vỏ tàu)
@@ -207,7 +209,10 @@ public class BoatVisualFx : MonoBehaviour
         }
         Quaternion rot = outward.sqrMagnitude > 0.0001f ? Quaternion.LookRotation(outward.normalized, Vector3.up) : Quaternion.identity;
 
-        SimplePool2.Spawn(hitVfxPrefab, point, rot);
+        if (hitVfxPrefab != null)
+            SimplePool2.Spawn(hitVfxPrefab, point, rot);
+        if (woodVfxPrefab != null)
+            SimplePool2.Spawn(woodVfxPrefab, point, rot);
     }
 
     private void CacheRenderers()

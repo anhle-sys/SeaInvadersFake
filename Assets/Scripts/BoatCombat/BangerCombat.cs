@@ -50,7 +50,7 @@ public class BangerCombat : BoatCombatBase, IBoatMovementModifier
 
         if (to.magnitude <= data.triggerDistance)
         {
-            Explode();
+            Explode(enemy.GetComponentInParent<IDamageable>());
             return;
         }
 
@@ -79,10 +79,12 @@ public class BangerCombat : BoatCombatBase, IBoatMovementModifier
         if (other == null || other == targetController || other.Team == targetController.Team)
             return;
 
-        Explode();
+        Explode(other.GetComponentInParent<IDamageable>());
     }
 
-    private void Explode()
+    // primaryTarget: tàu địch đã kích nổ (tới đủ gần / va chạm). Nó luôn dính sát thương dù thân tàu chưa lọt vào
+    // explosionRadius - trước đây triggerDistance (tâm-tâm) lớn hơn explosionRadius nên có lúc nổ mà không trúng ai
+    private void Explode(IDamageable primaryTarget)
     {
         exploded = true;
 
@@ -94,6 +96,9 @@ public class BangerCombat : BoatCombatBase, IBoatMovementModifier
 
         HashSet<IDamageable> damaged = new HashSet<IDamageable>();
         float damage = stats != null ? stats.RollDamage() : data.explosionDamage;
+
+        if (primaryTarget != null && primaryTarget.Team != targetController.Team && damaged.Add(primaryTarget))
+            primaryTarget.TakeDamage(damage, transform.position);
 
         foreach (Collider col in cols)
         {

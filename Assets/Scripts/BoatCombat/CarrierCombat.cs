@@ -42,6 +42,9 @@ public class CarrierCombat : BoatCombatBase
             return;
         }
 
+        if (movement != null)
+            movement.AvoidEnemies = true;   // Carrier đánh từ xa: không húc vào tàu địch
+
         foreach (var plane in planes)
         {
             if (plane == null)
@@ -98,6 +101,7 @@ public class CarrierCombat : BoatCombatBase
         }
 
         steerEnemy = enemy;
+        movement.CombatTarget = enemy;
 
         // Vào trận / đổi mục tiêu: chọn chiều lượn theo hướng tàu đang chạy 
         if (enemy != null)
@@ -108,6 +112,7 @@ public class CarrierCombat : BoatCombatBase
     {
         inCombat = false;
         steerEnemy = null;
+        movement.CombatTarget = null;
     }
 
     private float ChooseOrbitDirection(Vector3 enemyPos)
