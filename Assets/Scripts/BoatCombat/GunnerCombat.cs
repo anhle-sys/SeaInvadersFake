@@ -5,6 +5,7 @@ using UnityEngine;
 public class GunnerCombat : BoatCombatBase, IBoatMovementModifier
 {
     [SerializeField] private BoatAimController aimController;
+    [SerializeField] private LayerMask allyMask = ~0;   // layer của thân tàu, để quét đồng đội gần
 
     private GunnerData data;
     private BoatStats stats;
@@ -21,20 +22,34 @@ public class GunnerCombat : BoatCombatBase, IBoatMovementModifier
     private const float TurnReleaseAngle = 25f;       // góc lệch dưới mức này thì bỏ chiều đã chọn
     private const float SideBlockThreshold = 0.15f;   // mức bị chắn tối thiểu để đổi chiều
     private const float TurnHoldTime = 0.6f;          // giữ chiều đã chọn tối thiểu bao lâu (chống lật qua lại)
-    private const float AllyPushSpeedRatio = 0.35f;   // tàu được đi trước vòng qua / đẩy đồng đội với tốc độ tối thiểu = moveSpeed × hệ số này
-    private const float AllyPushRange = 1f;           // khoảng trống trước mũi dưới mức này (không còn chỗ xoay) thì đẩy tàu kia ra thay vì vòng
-    private const float AllyPushSteerRatio = 1f;      // khi đẩy, giữ lại phần này của lực bẻ sang mạn vượt (cọ chéo hất nó sang ngang)
-    private const float AllyStuckSteerRatio = 2f;     // tàu nhường đứng chờ sát đồng đội: bẻ mạnh gấp mấy lần để quay mũi ra
-    private const float AllyPassWeight = 1.5f;        // độ mạnh bẻ lái vòng qua đồng đội chắn trước mũi
+
+    // Né đồng đội có ưu tiên cao hơn
+    private const float AllyAvoidRadius = 4f;         // tàu ưu tiên thấp bắt đầu né khi tàu ưu tiên cao vào trong bán kính này
+    private const float DodgeSideWeight = 3f;         // lực bẻ lái sang ngang
+    private const float DodgeAwayWeight = 1.5f;       // lực nhích ra xa tàu ưu tiên cao
+    private const float DodgeSpeedRatio = 0.5f;       // tốc độ tối đa khi đang né = moveSpeed × hệ số này (không bao giờ lùi)
+    private const int MaxAllyHits = 8;
 
     private float steerRadius;        // > 0: cua theo cung tròn bán kính này (chỉ khi đang combat); 0: dùng rotateSpeed
     private int turnSide;             // 0: tự do, +1: quay phải, -1: quay trái
     private float turnHoldTimer;
-    private bool yielding;            // đang phanh nhường đồng đội chắn trước mũi
-    private float pushSpeed;          // > 0: đang được đi trước, đẩy đồng đội với tốc độ tối thiểu này
+
+    private bool dodging;             // đang né tàu ưu tiên cao
+    private int dodgeSide;            // chiều né đã chốt: +1 phải, -1 trái, 0 chưa chốt (giữ cho tới khi hết tàu cần né)
+
+    private Rigidbody body;
+    private readonly Collider[] allyHits = new Collider[MaxAllyHits];
+    public int PriorityId => gameObject.GetInstanceID();
+
+    private static bool HasPriority(int a, int b) => a < b;
 
     public override float CombatSpeedMultiplier =>
         data != null ? data.combatSpeedMultiplier : 0.4f;
+
+    private void Awake()
+    {
+        body = GetComponent<Rigidbody>();
+    }
 
     public override void Setup(BoatData boatData, BoatStats boatStats)
     {
@@ -76,8 +91,7 @@ public class GunnerCombat : BoatCombatBase, IBoatMovementModifier
             default: orbitDirection = 0f; break;
         }
 
-        // Chọn luôn mạn sẽ hướng về địch (cả khi lướt qua): địch đang lệch về bên nào thì để nó bên đó,
-        // nên tàu lướt qua địch ở mạn đó rồi bẻ lái về phía địch, không phải đổi mạn
+        // Chọn luôn mạn sẽ hướng về địch
         if (orbitDirection == 0f && to.sqrMagnitude > 0.001f)
         {
             float side = Vector3.Dot(Vector3.Cross(Vector3.up, forward.normalized), to.normalized);
@@ -101,8 +115,7 @@ public class GunnerCombat : BoatCombatBase, IBoatMovementModifier
         steerRadius = data.turnRadius;   // BoatMovementController hỏi lại qua GetMaxYawRate
         movement.Steer(GetCombatDirection(enemy));
 
-        // Chỉ chạy chậm khi địch đã trong tầm bắn (đang tấn công); ngoài tầm thì chạy hết tốc để áp sát.
-        // Giảm dần trong một dải ngay ngoài tầm: không lao vọt qua địch, lượn ở mép tầm không bị giật tốc
+        // Chỉ chạy chậm khi địch đã trong tầm bắn, ngoài tầm thì chạy hết tốc để áp sát.
         float dist = Vector3.Distance(transform.position, enemy.position);
         float outside = Mathf.InverseLerp(data.attackRange, data.attackRange * SlowDownRangeRatio, dist);
         movement.SetSpeedMultiplier(Mathf.Lerp(data.combatSpeedMultiplier * GetTurningSpeedFactor(enemy), 1f, outside));
@@ -130,6 +143,7 @@ public class GunnerCombat : BoatCombatBase, IBoatMovementModifier
         float farT = Mathf.InverseLerp(OrbitDistance * 1.1f, OrbitDistance * 1.5f, dist);
         return Mathf.Lerp(engagedFactor, 1f, farT);
     }
+
     private Vector3 GetCombatDirection(Transform enemy)
     {
         Vector3 forward = transform.forward;
@@ -159,7 +173,6 @@ public class GunnerCombat : BoatCombatBase, IBoatMovementModifier
             else
             {
                 // Đi gần như thẳng, chỉ lệch đủ để lướt qua địch ở mạn đã chọn với khoảng cách passOffset
-                // (mặc định = bán kính lượn), để khi ngang hông là đã ở đúng vòng lượn
                 float offset = data.passOffset > 0f ? data.passOffset : OrbitDistance;
                 float offsetAngle = Mathf.Asin(Mathf.Clamp01(offset / dist)) * Mathf.Rad2Deg;
                 return Quaternion.AngleAxis(-sign * offsetAngle, Vector3.up) * toDir;
@@ -177,34 +190,75 @@ public class GunnerCombat : BoatCombatBase, IBoatMovementModifier
     {
         steerRadius = 0f;   // ra khỏi trận: xoay theo rotateSpeed như bình thường
     }
-
     public void ModifyObstacle(in BoatMovementContext ctx, ref float speedLimit, ref Vector3 steer)
     {
-        BoatSteeringSensors sensors = ctx.sensors;
-        float allyFree = sensors.AllyAheadFree;
-        bool allyAhead = allyFree < float.MaxValue;
-        bool pushingThrough = false;
-        pushSpeed = 0f;
-        yielding = false;
-        if (allyAhead)
-        {
-            float allyLimit = Mathf.Max(Mathf.Sqrt(2f * ctx.brakeDecel * 0.8f * allyFree) - Mathf.Max(sensors.AllyAheadClosing, 0f), 0f);
-            if (!sensors.MustYield)
-            {
-                pushSpeed = ctx.moveSpeed * AllyPushSpeedRatio;
-                allyLimit = Mathf.Max(allyLimit, pushSpeed);
-                pushingThrough = allyFree < AllyPushRange;
-            }
-            yielding = allyLimit < ctx.maxSpeed;
-            if (yielding)
-                speedLimit = Mathf.Min(speedLimit, allyLimit);
-        }
-        float passWeight = pushingThrough ? AllyPassWeight * AllyPushSteerRatio
-                         : yielding && allyFree < AllyPushRange ? AllyPassWeight * AllyStuckSteerRatio
-                         : AllyPassWeight;
-        steer += sensors.AllyAheadSteer * passWeight;
-    }
+        dodging = false;
 
+        Vector3 away = Vector3.zero;
+        if (body != null && GameController.BattleStarted && targetController != null)
+            away = SenseHigherPriorityAllies();
+
+        if (away.sqrMagnitude < 0.0001f)
+        {
+            dodgeSide = 0;   // hết tàu cần né -> lần sau chọn lại chiều
+            return;
+        }
+
+        dodging = true;
+        Vector3 awayDir = away.normalized;
+
+        // Chốt chiều né một lần cho tới khi thoát (chống lật trái/phải khi tàu kia ở ngay trước mũi)
+        if (dodgeSide == 0)
+        {
+            float side = Vector3.Dot(transform.right, awayDir);
+            if (Mathf.Abs(side) < 0.05f)
+                dodgeSide = gameObject.GetInstanceID() % 2 == 0 ? 1 : -1;
+            else
+                dodgeSide = side > 0f ? 1 : -1;
+        }
+
+        // Bẻ lái sang ngang + nhích ra xa tàu ưu tiên cao
+        steer += transform.right * (dodgeSide * DodgeSideWeight) + awayDir * DodgeAwayWeight;
+
+        // Chạy chậm vừa đủ để kịp xoay, không đứng yên, không lùi
+        speedLimit = Mathf.Min(speedLimit, ctx.moveSpeed * DodgeSpeedRatio);
+    }
+    private Vector3 SenseHigherPriorityAllies()
+    {
+        int count = Physics.OverlapSphereNonAlloc(
+            transform.position, AllyAvoidRadius, allyHits, allyMask, QueryTriggerInteraction.Ignore);
+
+        int myId = PriorityId;
+        Vector3 away = Vector3.zero;
+
+        for (int i = 0; i < count; i++)
+        {
+            Rigidbody otherBody = allyHits[i].attachedRigidbody;
+            if (otherBody == null || otherBody == body)
+                continue;
+
+            if (!otherBody.TryGetComponent(out BoatTargetController other) || other.Team != targetController.Team)
+                continue;
+
+            if (!HasPriority(otherBody.gameObject.GetInstanceID(), myId))
+                continue;   // mình ưu tiên cao hơn: không né, không nhường
+
+            Vector3 fromOther = body.position - otherBody.position;
+            fromOther.y = 0f;
+            float dist = fromOther.magnitude;
+            if (dist < 0.01f)
+            {
+                // Trùng vị trí: đẩy theo hướng ngang của mình để tách ra
+                away += transform.right;
+                continue;
+            }
+
+            float weight = 1f - Mathf.Clamp01(dist / AllyAvoidRadius);   // càng gần càng mạnh
+            away += (fromOther / dist) * Mathf.Max(weight, 0.1f);
+        }
+
+        return away;
+    }
     public float ModifyHeadingAngle(in BoatMovementContext ctx, float angle)
     {
         BoatSteeringSensors sensors = ctx.sensors;
@@ -237,7 +291,6 @@ public class GunnerCombat : BoatCombatBase, IBoatMovementModifier
         else if (turnHoldTimer <= 0f)
         {
             // Hết thời gian giữ: đường ngắn hết bị chắn thì quay về đường ngắn,
-            // chiều đang quay lại bị chắn mà phía kia trống thì đổi chiều
             float sideBlock = turnSide > 0 ? blockRight : blockLeft;
             float otherBlock = turnSide > 0 ? blockLeft : blockRight;
             if (turnSide != shortSide && shortBlock < SideBlockThreshold * 0.5f)
@@ -255,22 +308,11 @@ public class GunnerCombat : BoatCombatBase, IBoatMovementModifier
         return turnSide == shortSide ? angle : turnSide * (360f - absAngle);
     }
 
-    public float ModifyMeasuredForward(in BoatMovementContext ctx, float measuredForward)
-    {
-        // Đang đẩy đồng đội ra: lực cản của nó không được xoá tốc độ đẩy về 0
-        if (pushSpeed > 0f)
-            return Mathf.Max(measuredForward, Mathf.Min(ctx.currentSpeed, pushSpeed));
-        return measuredForward;
-    }
+    // Không còn đẩy ở tốc độ tối thiểu / lùi nhường nên không cần can thiệp tốc độ đo được
+    public float ModifyMeasuredForward(in BoatMovementContext ctx, float measuredForward) => measuredForward;
 
     public bool TryOverrideSpeed(in BoatMovementContext ctx, float measuredForward, out float speed)
     {
-        if (yielding && ctx.sensors.MustYield && measuredForward < 0f)
-        {
-            speed = measuredForward * Mathf.Exp(-ctx.profile.lateralGrip * ctx.dt);
-            return true;
-        }
-
         speed = 0f;
         return false;
     }
@@ -283,8 +325,8 @@ public class GunnerCombat : BoatCombatBase, IBoatMovementModifier
 
         maxYawRate *= turnAuthority;
 
-        // Đang né / nhường đồng đội (thường gần đứng yên): vẫn cho xoay đủ để thoát ra
-        if (turnSide != 0 || yielding)
+        // Đang né tàu ưu tiên cao (thường chạy chậm): vẫn cho xoay đủ để thoát ra
+        if (turnSide != 0 || dodging)
             maxYawRate = Mathf.Max(maxYawRate, ctx.rotateSpeed * ctx.rotScale * BoatMovementController.MinTurnAuthority);
 
         return maxYawRate;
@@ -295,8 +337,8 @@ public class GunnerCombat : BoatCombatBase, IBoatMovementModifier
         steerRadius = 0f;
         turnSide = 0;
         turnHoldTimer = 0f;
-        yielding = false;
-        pushSpeed = 0f;
+        dodging = false;
+        dodgeSide = 0;
     }
 
     private void TryAttack(Transform enemy)

@@ -75,8 +75,6 @@ public class BoatMovementController : MonoBehaviour
 
     public void SetSpeedMultiplier(float multiplier)
     {
-        // Không cần làm mượt ở đây: gia tốc/phanh đã đưa tốc độ về dần.
-        // > 1 cho phép tàu vượt moveSpeed (vd: Banger lao vào địch)
         speedMultiplier = Mathf.Clamp(multiplier, 0.05f, MaxSpeedMultiplier);
     }
 
@@ -175,7 +173,6 @@ public class BoatMovementController : MonoBehaviour
         sensors.UpdateAvoidance(p, measuredForward);
         float obstacleSpeedLimit = sensors.SenseObstacle(p, measuredForward, brakeDecel, out Vector3 obstacleSteer);
 
-        // Logic riêng của từng loại tàu (vd: Gunner nhường / đẩy đồng đội) chỉnh giới hạn tốc độ và hướng né
         if (Modifier != null)
             Modifier.ModifyObstacle(MakeContext(dt, measuredForward, brakeDecel), ref obstacleSpeedLimit, ref obstacleSteer);
 

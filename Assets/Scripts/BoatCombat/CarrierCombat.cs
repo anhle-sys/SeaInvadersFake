@@ -63,8 +63,6 @@ public class CarrierCombat : BoatCombatBase
         SpawnUpgradePlanes();
     }
 
-    // Nâng cấp Air đạt các bậc trong CarrierData.planeUnlockAirTiers (2.0, 4.0...) thì có thêm máy bay.
-    // Setup chạy lúc spawn tàu và mỗi lần mua nâng cấp, nên máy bay mới xuất hiện ngay và có lại ở round sau
     private void SpawnUpgradePlanes()
     {
         BoatAIController ai = GetComponent<BoatAIController>();
@@ -78,8 +76,6 @@ public class CarrierCombat : BoatCombatBase
         while (planes.Count < wanted && AddPlaneFromUpgrade()) { }
     }
 
-    // Tàu sân bay bị hủy: hủy luôn các máy bay của nó. Máy bay đang đỗ là con của tàu nên tự mất theo,
-    // còn máy bay đang bay đã tách khỏi tàu nên phải hủy riêng
     private void OnDestroy()
     {
         if (!gameObject.scene.isLoaded)
@@ -103,8 +99,7 @@ public class CarrierCombat : BoatCombatBase
 
         steerEnemy = enemy;
 
-        // Vào trận / đổi mục tiêu: chọn chiều lượn theo hướng tàu đang chạy (ít phải quay nhất),
-        // không bắt tàu quay đầu ngược lại hay quay mũi về phía địch
+        // Vào trận / đổi mục tiêu: chọn chiều lượn theo hướng tàu đang chạy 
         if (enemy != null)
             orbitDirection = ChooseOrbitDirection(enemy.position);
     }
@@ -127,9 +122,6 @@ public class CarrierCombat : BoatCombatBase
         return Vector3.Dot(FlatForward(), tangent) >= 0f ? 1f : -1f;
     }
 
-    // Hướng lái: lượn tròn quanh địch ở bán kính keep, lệch dần vào trong / ra ngoài theo sai số bán kính.
-    // Một công thức liên tục cho mọi khoảng cách (không có ngưỡng đổi chế độ) nên hướng không nhảy
-    // khi tàu dao động quanh mép vòng lượn
     private Vector3 GetCombatDirection(Vector3 toEnemy, float dist, float keep)
     {
         if (dist < 0.01f || keep < 0.01f)
@@ -154,8 +146,6 @@ public class CarrierCombat : BoatCombatBase
         return f.sqrMagnitude > 0.0001f ? f.normalized : Vector3.forward;
     }
 
-    // Lái trong FixedUpdate, cùng nhịp với BoatMovementController: nếu cập nhật hướng trong Update thì
-    // mỗi bước vật lý thấy hướng đổi 0, 1 hoặc 2 frame một lần -> tốc độ xoay bù trước bị nhiễu -> tàu giật
     private void FixedUpdate()
     {
         if (!inCombat || data == null || steerEnemy == null)

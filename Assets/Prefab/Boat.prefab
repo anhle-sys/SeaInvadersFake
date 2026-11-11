@@ -152,8 +152,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 2.2269287, y: 1.8779871, z: 4.5254116}
-  m_Center: {x: 0.070035934, y: 0.98328555, z: 0.19508457}
+  m_Size: {x: 1.6548818, y: 1.8779871, z: 4.3632812}
+  m_Center: {x: 0.04395044, y: 0.98328555, z: 0.27614987}
 --- !u!114 &4972375304632877293
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -220,11 +220,8 @@ MonoBehaviour:
   cannons:
   - {fileID: 4783431709271291197}
   - {fileID: 6918075179939769368}
-  aimTolerance: 15
-  raycastDistance: 17
-  targetLayer:
-    serializedVersion: 2
-    m_Bits: 64
+  coneHalfAngle: 15
+  coneRange: 17
 --- !u!114 &320360016039258098
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -240,6 +237,9 @@ MonoBehaviour:
   targetController: {fileID: 5687040630268287562}
   movement: {fileID: 4972375304632877293}
   aimController: {fileID: 936872929354406696}
+  allyMask:
+    serializedVersion: 2
+    m_Bits: 64
 --- !u!114 &3624130262996640319
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -277,6 +277,7 @@ MonoBehaviour:
   hitSpringDamping: 13
   fullStrengthDamageRatio: 0.1
   flashColor: {r: 2.2, g: 0.75, b: 0.6, a: 1}
+  flashIntensity: 0.6
   flashDuration: 0.16
   hitVfxPrefab: {fileID: 4824146226635218643, guid: d5517b12b672a3b439cf0239de055a26, type: 3}
 --- !u!114 &6909268774746980960

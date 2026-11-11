@@ -39,7 +39,7 @@ public class BoatAIController : MonoBehaviour
     private void OnDisable() => GameData.OnUpgradeChanged -= HandleUpgradeChanged;
 
     // Mua nâng cấp khi tàu đã đặt trên sân: tính lại chỉ số ngay, không đợi lần spawn sau
-private void HandleUpgradeChanged(string instanceId, StatType stat, int level)
+    private void HandleUpgradeChanged(string instanceId, StatType stat, int level)
     {
         if (!initialized || data == null || InstanceId != instanceId || targetController.Team != BoatTeam.Ally)
             return;
@@ -53,7 +53,7 @@ private void HandleUpgradeChanged(string instanceId, StatType stat, int level)
             combat.Setup(data, stats);
     }
 
-private void OnDestroy() => GameData.ReleaseBoat(InstanceId);
+    private void OnDestroy() => GameData.ReleaseBoat(InstanceId);
 
 
     private void Start()
@@ -62,7 +62,7 @@ private void OnDestroy() => GameData.ReleaseBoat(InstanceId);
             Initialize(data);
     }
 
-public void Initialize(BoatData boatData, string instanceId = null)
+    public void Initialize(BoatData boatData, string instanceId = null)
     {
         data = boatData;
 
@@ -120,7 +120,7 @@ public void Initialize(BoatData boatData, string instanceId = null)
         }
         else if (state == State.Combat && targetController.CurrentBoatTarget != combatTarget)
         {
-            // Đổi thẳng từ địch A sang địch B: chạy lại logic vào trận (chọn mạn, lướt qua...) cho mục tiêu mới
+            // Đổi thẳng từ địch A sang địch B
             EnterState(State.Combat);
         }
 
@@ -165,7 +165,6 @@ public void Initialize(BoatData boatData, string instanceId = null)
         }
 
         // Dừng theo mép collider của trụ và của tàu, không phải theo tâm,
-        // để tàu không ép vào trụ mãi khi trụ to hơn towerStoppingDistance
         Vector3 point = tower.position;
         float stopDistance = towerStoppingDistance;
 

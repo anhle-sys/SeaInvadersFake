@@ -6,8 +6,6 @@ public enum BoatTeam
     Enemy
 }
 
-// Chạy trước BoatAIController / BoatAimController: mục tiêu vừa chết thì tìm mục tiêu mới ngay trong frame đó,
-// AI không bị rơi về trạng thái "chạy về trụ" 1 frame rồi mới vào combat lại (giật hướng, reset logic vào trận)
 [DefaultExecutionOrder(-50)]
 public class BoatTargetController : MonoBehaviour
 {

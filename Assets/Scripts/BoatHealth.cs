@@ -16,7 +16,6 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
 
     public event Action<float> OnHealthChanged;
     public event Action OnDied;
-    /// <summary>(sát thương / máu tối đa, vị trí nguồn sát thương). Không gọi khi né được.</summary>
     public event Action<float, Vector3> OnDamaged;
     public bool IsAlly => Team == BoatTeam.Ally;
     public BoatTeam Team => targetController.Team;
@@ -45,7 +44,6 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
         }
     }
 
-    /// <summary>Cập nhật chỉ số (sau khi mua nâng cấp), giữ nguyên tỉ lệ máu hiện tại.</summary>
     public void UpdateStats(BoatStats boatStats)
     {
         if (boatStats == null || isDead)
@@ -92,9 +90,6 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
 
         Destroy(gameObject);
     }
-
-    // Tàu bị Destroy không qua Die() (Banger tự nổ, Clear ô spawn, đổi scene):
-    // vẫn báo để thanh máu được trả về pool, tránh giữ tham chiếu tới object đã hủy
     private void OnDestroy()
     {
         if (!isDead)

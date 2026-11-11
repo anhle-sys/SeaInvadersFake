@@ -1,9 +1,5 @@
 using UnityEngine;
 
-/// <summary>
-/// Vùng mặt nước mà camera trận đấu nhìn thấy (tứ giác lồi trên mặt phẳng nước).
-/// BoatMovementController dùng để lái tàu quay vào khi tới gần mép và chặn tàu chạy ra khỏi tầm nhìn.
-/// </summary>
 public class BattleBounds
 {
     private readonly Vector3[] corners = new Vector3[4];
@@ -13,11 +9,6 @@ public class BattleBounds
 
     public Vector3[] Corners => corners;
 
-    /// <param name="marginX">Lề trái/phải bỏ đi, tính theo tỉ lệ màn hình (0..0.5)</param>
-    /// <param name="marginY">Lề trên/dưới bỏ đi, tính theo tỉ lệ màn hình (0..0.5)</param>
-    /// <param name="maxDistance">Giới hạn xa nhất tính từ camera (camera nhìn chéo nên mép trên màn hình có thể rất xa)</param>
-    /// <param name="padding">Tâm tàu phải cách mép ít nhất khoảng này (để cả thân tàu còn trong hình)</param>
-    /// <param name="softMargin">Từ khoảng cách này tới mép tàu bắt đầu bẻ lái quay vào</param>
     public BattleBounds(Vector3 camPos, Quaternion camRot, float fov, float aspect, float planeY,
                         float marginX, float marginY, float maxDistance, float padding, float softMargin)
     {

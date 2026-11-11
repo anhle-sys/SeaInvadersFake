@@ -1,10 +1,5 @@
 using UnityEngine;
 
-/// <summary>
-/// Các điểm tham chiếu trên thân tàu (tâm, mũi tàu, chiều dài) theo world space.
-/// Lấy từ BoxCollider của tàu (chính xác theo trục tàu); không có thì dùng bounds của renderer.
-/// Quy ước: mũi tàu là hướng +Z (transform.forward), giống hướng di chuyển của BoatMovementController.
-/// </summary>
 public readonly struct BoatFraming
 {
     public readonly Vector3 Center;   // tâm thân tàu, ngang mặt boong
@@ -54,6 +49,5 @@ public readonly struct BoatFraming
         return new BoatFraming(center, center + forward * len * 0.5f, forward, right, len);
     }
 
-    /// <summary>Điểm giữa tâm và mũi tàu (t = 0: tâm, 1: mũi).</summary>
     public Vector3 TowardBow(float t) => Vector3.Lerp(Center, Bow, t);
 }

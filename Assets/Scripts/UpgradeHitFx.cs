@@ -1,10 +1,6 @@
 using DG.Tweening;
 using UnityEngine;
 
-/// <summary>
-/// Hiệu ứng "đập đồ" khi nâng cấp tàu thành công: khói bụi + tia lửa ở mũi tàu,
-/// tàu bị dập/nảy (squash &amp; stretch) và camera rung nhẹ.
-/// </summary>
 public class UpgradeHitFx : MonoBehaviour
 {
     [Header("VFX")]
