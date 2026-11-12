@@ -33,7 +33,16 @@ public class Fly : MonoBehaviour
     [Tooltip("Độ mượt của góc nghiêng / ngóc mũi (1/giây)")]
     [SerializeField] private float attitudeResponse = 5f;
 
-    [Header("Cất cánh")]
+    [Header("Né nhau (collider)")]
+    [Tooltip("Bán kính dò máy bay khác bằng collider. Nằm trong bán kính này là bắt đầu né")]
+    [SerializeField] private float avoidRadius = 3.5f;
+    [Tooltip("Độ mạnh lái tránh theo phương ngang (so với hướng đang muốn bay tới)")]
+    [SerializeField] private float avoidWeight = 1.6f;
+    [Tooltip("Độ lệch cao tối đa khi tách nhau theo phương dọc (đơn vị)")]
+    [SerializeField] private float avoidVertical = 1.5f;
+
+    
+[Header("Cất cánh")]
     [Tooltip("Thời gian chạy thẳng theo hướng tàu trước khi bẻ lái (giây)")]
     [SerializeField] private float takeoffRollTime = 0.6f;
     [Tooltip("Tốc độ ban đầu khi rời tàu (tỉ lệ so với planeSpeed)")]
@@ -64,7 +73,11 @@ public class Fly : MonoBehaviour
     [SerializeField] private float touchdownDistance = 2f;
     [SerializeField] private float landSnapDistance = 0.15f;
 
-    private BoatTeam team;
+    private static readonly Collider[] avoidBuffer = new Collider[24];
+    public bool IsFlying => state == State.Attacking || state == State.Returning;
+
+    
+private BoatTeam team;
     private Transform target;
     private Rigidbody targetRb;
     private CarrierData data;
@@ -317,7 +330,7 @@ public class Fly : MonoBehaviour
         float turnBoost = Mathf.Lerp(1f, 2.5f, approachT);
 
         float targetY = Mathf.Lerp(dock.y, CruiseY, Mathf.Clamp01((horiz - touchdownDistance) / descendDistance));
-        FlyMove(dt, flat, targetY, targetSpeed, turnBoost);
+        FlyMove(dt, flat, targetY, targetSpeed, turnBoost, 1f - approachT);
 
         if (toDock.magnitude <= touchdownDistance)
             state = State.Landing;
@@ -361,10 +374,19 @@ public class Fly : MonoBehaviour
         return f.normalized;
     }
 
-    private Vector3 FlyMove(float dt, Vector3 desiredFlat, float targetY, float targetSpeed, float turnBoost)
+private Vector3 FlyMove(float dt, Vector3 desiredFlat, float targetY, float targetSpeed, float turnBoost, float avoidStrength = 1f)
     {
         Vector3 pos = transform.position;
         Vector3 flatForward = FlatForward();
+
+        // Né máy bay khác: trộn vector đẩy ra xa vào hướng muốn bay, và tách độ cao một chút
+        if (avoidStrength > 0.01f && desiredFlat.sqrMagnitude > 0.001f)
+        {
+            Vector3 sep = ComputeSeparation(pos, out float sepY);
+            if (sep.sqrMagnitude > 0.0001f)
+                desiredFlat = desiredFlat.normalized + sep * (avoidWeight * avoidStrength);
+            targetY += sepY * avoidVertical * avoidStrength;
+        }
 
         float maxTurn = data.planeTurnSpeed * turnBoost;
         float angle = desiredFlat.sqrMagnitude > 0.001f
@@ -394,6 +416,39 @@ public class Fly : MonoBehaviour
         transform.rotation = Quaternion.LookRotation(flatForward, Vector3.up) * Quaternion.Euler(pitch, 0f, bank);
 
         return flatForward;
+    }
+
+    // Dùng collider của các máy bay khác (OverlapSphere) để tính vector đẩy ra xa
+    private Vector3 ComputeSeparation(Vector3 pos, out float sepY)
+    {
+        sepY = 0f;
+        Vector3 push = Vector3.zero;
+
+        int n = Physics.OverlapSphereNonAlloc(pos, avoidRadius, avoidBuffer, ~0, QueryTriggerInteraction.Collide);
+        for (int i = 0; i < n; i++)
+        {
+            Fly other = avoidBuffer[i].GetComponentInParent<Fly>();
+            if (other == null || other == this || !other.IsFlying)
+                continue;
+
+            Vector3 away = pos - other.transform.position;
+            float dist = away.magnitude;
+            if (dist < 0.001f)
+            {
+                // Trùng vị trí hoàn toàn: đẩy theo hướng ngẫu nhiên ổn định theo từng máy bay
+                float a = (GetInstanceID() & 255) * Mathf.Deg2Rad * 1.40625f;
+                away = new Vector3(Mathf.Cos(a), 0.5f, Mathf.Sin(a));
+                dist = 0.001f;
+            }
+
+            float w = 1f - Mathf.Clamp01(dist / avoidRadius); // càng gần càng đẩy mạnh
+            Vector3 dir = away / Mathf.Max(dist, 0.001f);
+            push += new Vector3(dir.x, 0f, dir.z) * w;
+            sepY += Mathf.Clamp(dir.y, -1f, 1f) * w + (GetInstanceID() > other.GetInstanceID() ? 0.5f : -0.5f) * w;
+        }
+
+        sepY = Mathf.Clamp(sepY, -1f, 1f);
+        return push;
     }
 
     private void UpdateAttitude(float dt, float climbRate, float currentYawRate)

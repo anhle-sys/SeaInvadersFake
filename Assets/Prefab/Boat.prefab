@@ -81,6 +81,7 @@ GameObject:
   - component: {fileID: 3624130262996640319}
   - component: {fileID: 5198315579593067432}
   - component: {fileID: 6909268774746980960}
+  - component: {fileID: 7063373023226304403}
   m_Layer: 6
   m_Name: Boat
   m_TagString: Untagged
@@ -253,6 +254,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BoatHealth
   targetController: {fileID: 5687040630268287562}
+  meshStateController: {fileID: 7063373023226304403}
   barOffset: {x: 0, y: 2, z: 0}
 --- !u!114 &5198315579593067432
 MonoBehaviour:
@@ -295,6 +297,25 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BoatClickable
   boatData: {fileID: 11400000, guid: 7536031dd8e007442a0c71d1a6f32534, type: 2}
   channel: {fileID: 11400000, guid: 21af124081eb4f54e90b0fd282f3b909, type: 2}
+--- !u!114 &7063373023226304403
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2368469649159627480}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 319bf07ce1de0444eb22463da25634a2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MeshStateController
+  meshFilter: {fileID: 4512806733476055064}
+  meshStates:
+  - {fileID: 4300000, guid: ad766f9ad10830844bafc7aad3e78590, type: 2}
+  - {fileID: 4300000, guid: a35e1ec36d855e24e865fb8f7d00860a, type: 2}
+  - {fileID: 4300000, guid: d7d3bdc01d68810408f0921d0a872939, type: 2}
+  - {fileID: 4300000, guid: 4ca17d1124e02a649bdafa296980a648, type: 2}
+  - {fileID: 4300000, guid: 37fa15e09682a8f4d818c17712742811, type: 2}
 --- !u!1001 &1046479125166334038
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -371,5 +392,10 @@ PrefabInstance:
 --- !u!4 &652861714544183229 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 1c713e58fd782431cafe3a0f209c359c, type: 3}
+  m_PrefabInstance: {fileID: 1046479125166334038}
+  m_PrefabAsset: {fileID: 0}
+--- !u!33 &4512806733476055064 stripped
+MeshFilter:
+  m_CorrespondingSourceObject: {fileID: -5754084199372789682, guid: 1c713e58fd782431cafe3a0f209c359c, type: 3}
   m_PrefabInstance: {fileID: 1046479125166334038}
   m_PrefabAsset: {fileID: 0}

@@ -9,7 +9,7 @@ public class WorldClickHandler : MonoBehaviour
     [SerializeField] private InputActionReference clickAction;
 
     [Header("Settings")]
-    [SerializeField] private LayerMask clickableLayers; // chọn cả Boat + Ocean
+    [SerializeField] private LayerMask clickableLayers;
     [SerializeField] private float maxDistance = 1000f;
 
     private void OnEnable()
@@ -25,16 +25,13 @@ public class WorldClickHandler : MonoBehaviour
     {
         if (!GameController.CanPrepare || clickAction == null)
             return;
-        // Action "Click" là PassThrough: WasPerformedThisFrame() đúng cả lúc nhấn lẫn lúc thả -> click bị xử lý 2 lần.
-        // Chỉ xử lý lúc nhấn.
+
         if (!clickAction.action.WasPressedThisFrame())
             return;
 
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
             return;
 
-        // Pointer.current = chuột, bút hoặc màn hình cảm ứng (thiết bị vừa dùng gần nhất).
-        // Mouse.current luôn null trên điện thoại không có chuột.
         Pointer pointer = Pointer.current;
         if (pointer == null || mainCamera == null)
             return;

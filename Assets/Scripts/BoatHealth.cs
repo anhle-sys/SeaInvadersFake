@@ -6,6 +6,7 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
     private const float MinDamageRatio = 0.1f;
 
     [SerializeField] private BoatTargetController targetController;
+    [SerializeField] private MeshStateController meshStateController;
     [SerializeField] private Vector3 barOffset = new Vector3(0, 2f, 0);
 
     private BoatData data;
@@ -65,12 +66,25 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
         if (UnityEngine.Random.value * 100f < stats.Evasion)
             return;
 
-        amount = Mathf.Max(amount - stats.Armor, amount * MinDamageRatio);
+        amount = Mathf.Max(
+            amount - stats.Armor,
+            amount * MinDamageRatio
+        );
 
         health -= amount;
-        OnHealthChanged?.Invoke(Mathf.Clamp01(health / Mathf.Max(stats.MaxHealth, 0.01f)));
-        // Tỉ lệ sát thương so với máu tối đa: hiệu ứng trúng đòn mạnh/yếu theo cú đánh
-        OnDamaged?.Invoke(amount / Mathf.Max(stats.MaxHealth, 0.01f), sourcePosition);
+
+        health = Mathf.Max(health, 0f);
+
+        OnHealthChanged?.Invoke(
+            Mathf.Clamp01(health / Mathf.Max(stats.MaxHealth, 0.01f))
+        );
+
+        OnDamaged?.Invoke(
+            amount / Mathf.Max(stats.MaxHealth, 0.01f),
+            sourcePosition
+        );
+
+        UpdateMeshByHealth();
 
         if (health <= 0f)
             Die();
@@ -89,6 +103,21 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
         }
 
         Destroy(gameObject);
+    }
+
+    private void UpdateMeshByHealth()
+    {
+        float healthPercent = Mathf.Clamp01(
+            health / Mathf.Max(stats.MaxHealth, 0.01f)
+        );
+
+        int meshIndex = Mathf.Clamp(
+            Mathf.FloorToInt((1f - healthPercent) * 5f),
+            0,
+            4
+        );
+
+        meshStateController.SetState(meshIndex);
     }
     private void OnDestroy()
     {
