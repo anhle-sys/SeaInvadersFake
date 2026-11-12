@@ -114,7 +114,13 @@ public class Bullet : MonoBehaviour
         BoatHealth health = other.GetComponentInParent<BoatHealth>();
 
         if (health != null)
-            health.TakeDamage(damage, transform.position);
+        {
+            // Hướng bay của đạn (A->B): tàu giật đúng theo hướng này, không phải từ điểm trúng vào tâm tàu
+            Vector3 travel = rb != null && rb.linearVelocity.sqrMagnitude > 0.0001f
+                ? rb.linearVelocity
+                : transform.forward;
+            health.TakeDamage(damage, transform.position, travel);
+        }
 
         Despawn();
     }

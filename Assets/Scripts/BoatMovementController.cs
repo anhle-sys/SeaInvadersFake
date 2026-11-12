@@ -34,6 +34,14 @@ public class BoatMovementController : MonoBehaviour
     [Tooltip("Thông số cảm giác lái. Tạo mới bằng Create > Boats > Handling Profile")]
     [SerializeField] private BoatHandlingProfile profile;
 
+    [Header("Bị đẩy lùi khi trúng đòn")]
+    [Tooltip("Vận tốc đẩy lùi (đơn vị/giây) với cú đánh chuẩn. 0 = tắt")]
+    [SerializeField] private float knockbackSpeed = 1.6f;
+    [Tooltip("Tốc độ tắt dần của lực đẩy: lớn = dừng nhanh")]
+    [SerializeField] private float knockbackDecay = 3.5f;
+    [Tooltip("Sát thương bằng tỉ lệ này của máu tối đa thì đẩy ở mức 100%")]
+    [SerializeField] private float knockbackFullDamageRatio = 0.1f;
+
     private float moveSpeed = 5f;
     private float rotateSpeed = 120f;
 
@@ -63,6 +71,11 @@ public class BoatMovementController : MonoBehaviour
     private int unstickSide;          // chiều xoay khi gỡ kẹt: +1 phải, -1 trái, 0 chưa chốt
     private float stuckRetryTimer;    // > 0: vừa gỡ kẹt xong
     private bool steeringAroundBoat;  // đang bẻ lái vòng qua tàu chắn mũi
+
+    // Đẩy lùi khi trúng đòn: cộng thêm lên vận tốc lái, tách riêng để không lẫn vào tốc độ lái đo được
+    private BoatHealth health;
+    private Vector3 appliedKnockback; // đã cộng vào rb ở bước vật lý trước
+    private Vector3 pendingKnockback; // cú đánh mới, chờ bước vật lý kế tiếp
 
     // Né cả tàu địch (Gunner / Carrier bật; Banger để tắt vì nó lao vào địch)
     public bool AvoidEnemies { get; set; }
@@ -100,6 +113,44 @@ public class BoatMovementController : MonoBehaviour
         sensors = new BoatSteeringSensors(rb);
         referenceMass = rb.mass;
         RefreshMassScales();
+
+        health = GetComponent<BoatHealth>();
+    }
+
+    private void OnEnable()
+    {
+        if (health != null)
+            health.OnDamaged += HandleDamaged;
+    }
+
+    private void OnDisable()
+    {
+        if (health != null)
+            health.OnDamaged -= HandleDamaged;
+        appliedKnockback = pendingKnockback = Vector3.zero;
+    }
+
+    /// <summary>Đẩy tàu theo hướng lực tác động (hướng bay của đạn / từ tâm vụ nổ ra).</summary>
+    public void ApplyKnockback(Vector3 pushDirection, float strength01)
+    {
+        if (knockbackSpeed <= 0f || !GameController.BattleStarted)
+            return;
+
+        Vector3 away = pushDirection;
+        away.y = 0f;
+        if (away.sqrMagnitude < 0.0001f)
+            return;   // không rõ hướng (vd TakeDamage không có nguồn) thì bỏ qua
+
+        // Tàu nặng (rotScale nhỏ) bị đẩy ít hơn
+        float maxSpeed = knockbackSpeed * rotScale;
+        pendingKnockback += away.normalized * (maxSpeed * Mathf.Clamp(strength01, 0.4f, 2f));
+        pendingKnockback = Vector3.ClampMagnitude(pendingKnockback, maxSpeed * 2.5f);
+    }
+
+    private void HandleDamaged(float damageRatio, Vector3 hitPoint, Vector3 hitDirection)
+    {
+        float strength = knockbackFullDamageRatio > 0f ? damageRatio / knockbackFullDamageRatio : 1f;
+        ApplyKnockback(hitDirection, strength);
     }
 
     public void ApplyLevel(BoatData data, int level)
@@ -170,6 +221,7 @@ public class BoatMovementController : MonoBehaviour
         hasPrevHeading = false;
         headingRate = 0f;
         ResetStuck();
+        appliedKnockback = pendingKnockback = Vector3.zero;
         Modifier?.OnMovementReset();
         sensors?.ResetPass();
 
@@ -196,6 +248,7 @@ public class BoatMovementController : MonoBehaviour
             currentSpeed = 0f;
             currentYawRate = 0f;
             ResetStuck();
+            appliedKnockback = pendingKnockback = Vector3.zero;
         }
 
         if (!started)
@@ -208,7 +261,8 @@ public class BoatMovementController : MonoBehaviour
         BoatHandlingProfile p = profile;
         Vector3 forward = rb.rotation * Vector3.forward;
         Vector3 right = rb.rotation * Vector3.right;
-        Vector3 velocity = rb.linearVelocity;
+        // Bỏ phần đẩy lùi đã cộng ở bước trước: lái chỉ đo vận tốc của chính nó
+        Vector3 velocity = rb.linearVelocity - appliedKnockback;
 
         // Tốc độ thực tế dọc thân tàu (đã gồm va chạm): tàu bị chặn sẽ không "tích" tốc độ ảo
         float measuredForward = Vector3.Dot(velocity, forward);
@@ -256,6 +310,14 @@ public class BoatMovementController : MonoBehaviour
         // Vận tốc: dọc thân = currentSpeed, ngang thì tắt dần (trôi nhẹ khi cua/va chạm)
         lateral *= Mathf.Exp(-p.lateralGrip * dt);
         Vector3 v = newRotation * Vector3.forward * currentSpeed + newRotation * Vector3.right * lateral;
+
+        // Đẩy lùi khi trúng đòn: tắt dần theo thời gian, cộng các cú đánh mới
+        appliedKnockback = appliedKnockback * Mathf.Exp(-knockbackDecay * dt) + pendingKnockback;
+        pendingKnockback = Vector3.zero;
+        if (appliedKnockback.sqrMagnitude < 0.0004f)
+            appliedKnockback = Vector3.zero;
+        v += appliedKnockback;
+
         // Không cho tàu chạy ra khỏi tầm nhìn của camera trận đấu
         boundsLimited = false;
         if (bounds != null)

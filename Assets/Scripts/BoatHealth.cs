@@ -17,7 +17,8 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
 
     public event Action<float> OnHealthChanged;
     public event Action OnDied;
-    public event Action<float, Vector3> OnDamaged;
+    // (tỉ lệ sát thương / máu tối đa, điểm trúng, hướng lực tác động đã chuẩn hóa trên mặt phẳng XZ - có thể = 0)
+    public event Action<float, Vector3, Vector3> OnDamaged;
     public bool IsAlly => Team == BoatTeam.Ally;
     public BoatTeam Team => targetController.Team;
     public bool IsDead => isDead;
@@ -58,7 +59,11 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
 
     public void TakeDamage(float amount) => TakeDamage(amount, transform.position);
 
-    public void TakeDamage(float amount, Vector3 sourcePosition)
+    // Vụ nổ / nguồn không có hướng bay: đẩy từ nguồn ra xa tâm tàu
+    public void TakeDamage(float amount, Vector3 sourcePosition) =>
+        TakeDamage(amount, sourcePosition, transform.position - sourcePosition);
+
+    public void TakeDamage(float amount, Vector3 sourcePosition, Vector3 hitDirection)
     {
         if (isDead || stats == null)
             return;
@@ -79,9 +84,13 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
             Mathf.Clamp01(health / Mathf.Max(stats.MaxHealth, 0.01f))
         );
 
+        hitDirection.y = 0f;
+        hitDirection = hitDirection.sqrMagnitude > 0.0001f ? hitDirection.normalized : Vector3.zero;
+
         OnDamaged?.Invoke(
             amount / Mathf.Max(stats.MaxHealth, 0.01f),
-            sourcePosition
+            sourcePosition,
+            hitDirection
         );
 
         UpdateMeshByHealth();
@@ -107,6 +116,9 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
 
     private void UpdateMeshByHealth()
     {
+        if (meshStateController == null)
+            return;
+
         float healthPercent = Mathf.Clamp01(
             health / Mathf.Max(stats.MaxHealth, 0.01f)
         );

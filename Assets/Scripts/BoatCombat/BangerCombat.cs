@@ -86,8 +86,32 @@ public class BangerCombat : BoatCombatBase, IBoatMovementModifier
     // explosionRadius - trước đây triggerDistance (tâm-tâm) lớn hơn explosionRadius nên có lúc nổ mà không trúng ai
     private void Explode(IDamageable primaryTarget)
     {
+        if (exploded)
+            return;
         exploded = true;
 
+        // Cảm tử: tắt ngay va chạm + di chuyển để không còn húc / bị đẩy trong frame còn lại trước khi Destroy
+        foreach (Collider c in GetComponentsInChildren<Collider>())
+            c.enabled = false;
+        if (movement != null)
+            movement.enabled = false;
+
+        try
+        {
+            DealExplosionDamage(primaryTarget);
+
+            if (data.explosionPrefab != null)
+                Instantiate(data.explosionPrefab, transform.position, Quaternion.identity);
+        }
+        finally
+        {
+            // Luôn tự hủy, kể cả khi gây sát thương bị lỗi giữa chừng (trước đây lỗi -> Banger kẹt lại sống mà không nổ nữa)
+            Destroy(gameObject);
+        }
+    }
+
+    private void DealExplosionDamage(IDamageable primaryTarget)
+    {
         Collider[] cols = Physics.OverlapSphere(
             transform.position,
             data.explosionRadius,
@@ -110,10 +134,5 @@ public class BangerCombat : BoatCombatBase, IBoatMovementModifier
             if (damaged.Add(target))
                 target.TakeDamage(damage, transform.position);
         }
-
-        if (data.explosionPrefab != null)
-            Instantiate(data.explosionPrefab, transform.position, Quaternion.identity);
-
-        Destroy(gameObject);
     }
 }

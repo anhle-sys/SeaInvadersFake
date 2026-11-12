@@ -141,19 +141,26 @@ public class BoatVisualFx : MonoBehaviour
         StartBobbing();
     }
 
-    /// <summary>Phản ứng trúng đòn. strength01: 1 = cú đánh chuẩn; sourcePosition: nơi đạn/vụ nổ tới.</summary>
-    public void PlayHit(float strength01, Vector3 sourcePosition)
+    /// <summary>
+    /// Phản ứng trúng đòn. strength01: 1 = cú đánh chuẩn; hitPoint: nơi đạn/vụ nổ chạm;
+    /// hitDirection: hướng lực tác động (vd hướng bay A->B của đạn) - thân tàu giật đúng theo hướng này.
+    /// </summary>
+    public void PlayHit(float strength01, Vector3 hitPoint, Vector3 hitDirection)
     {
         if (visual == null)
             return;
 
         float s = Mathf.Clamp(strength01, 0.4f, 2f);
 
-        // Hướng đạn tới trong không gian của cha visual (bỏ trục Y)
+        // Không có hướng bay thì lấy từ điểm trúng vào tâm tàu
+        if (hitDirection.sqrMagnitude < 0.0001f)
+            hitDirection = transform.position - hitPoint;
+
+        // Hướng lực trong không gian của cha visual (bỏ trục Y). dir = phía lực đến (ngược hướng đẩy)
         Transform space = visual.parent != null ? visual.parent : transform;
-        Vector3 from = space.InverseTransformDirection(sourcePosition - transform.position);
-        from.y = 0f;
-        Vector2 dir = from.sqrMagnitude > 0.0001f ? new Vector2(from.x, from.z).normalized : Random.insideUnitCircle.normalized;
+        Vector3 push = space.InverseTransformDirection(hitDirection);
+        push.y = 0f;
+        Vector2 dir = push.sqrMagnitude > 0.0001f ? -new Vector2(push.x, push.z).normalized : Random.insideUnitCircle.normalized;
 
         // Vận tốc ban đầu để biên độ đỉnh ~ giá trị mong muốn (lò xo tắt dần ~ ω)
         float kick = Mathf.Sqrt(hitSpringStiffness) * 1.4f;
@@ -165,13 +172,13 @@ public class BoatVisualFx : MonoBehaviour
 
         flashT = 1f;
 
-        SpawnHitVfx(sourcePosition);
+        SpawnHitVfx(hitPoint);
     }
 
-    private void HandleDamaged(float damageRatio, Vector3 sourcePosition)
+    private void HandleDamaged(float damageRatio, Vector3 hitPoint, Vector3 hitDirection)
     {
         float strength = fullStrengthDamageRatio > 0f ? damageRatio / fullStrengthDamageRatio : 1f;
-        PlayHit(strength, sourcePosition);
+        PlayHit(strength, hitPoint, hitDirection);
     }
 
     private void UpdateHitSpring(float dt)
