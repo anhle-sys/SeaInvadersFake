@@ -7,6 +7,7 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
 
     [SerializeField] private BoatTargetController targetController;
     [SerializeField] private MeshStateController meshStateController;
+    [SerializeField] private ProjectileDestructionBridge destructionBridge;
     [SerializeField] private Vector3 barOffset = new Vector3(0, 2f, 0);
 
     private BoatData data;
@@ -29,6 +30,10 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
         // Quên kéo tham chiếu trong Inspector thì tự lấy, tránh NullReference ở Team / IsAlly
         if (targetController == null)
             targetController = GetComponent<BoatTargetController>();
+
+        // Prefab có hệ destruction (mesh bị khoét theo vết đạn) thì tự lấy cầu nối
+        if (destructionBridge == null)
+            destructionBridge = GetComponentInChildren<ProjectileDestructionBridge>(true);
     }
 
     public void Setup(BoatData boatData, BoatStats boatStats)
@@ -76,6 +81,8 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
             amount * MinDamageRatio
         );
 
+        Vector3 impactDirection = hitDirection; // giữ hướng 3D gốc cho destruction (hitDirection bên dưới bị ép y = 0)
+
         health -= amount;
 
         health = Mathf.Max(health, 0f);
@@ -92,6 +99,9 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
             sourcePosition,
             hitDirection
         );
+
+        if (health > 0f && destructionBridge != null)
+            destructionBridge.Apply(amount, sourcePosition, impactDirection);
 
         UpdateMeshByHealth();
 

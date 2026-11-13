@@ -76,6 +76,28 @@ public class BoatSteeringSensors
         boatMask = LayerMask.GetMask("Boat");
     }
 
+    // Cache collider -> BoatTargetController: GetComponentInParent phải leo hierarchy cho từng collider, từng tàu, mỗi bước vật lý.
+    // Collider không thuộc tàu (đảo, vật cản) cũng được cache dưới dạng null thật.
+    private static readonly System.Collections.Generic.Dictionary<Collider, BoatTargetController> s_boatCache =
+        new System.Collections.Generic.Dictionary<Collider, BoatTargetController>(256);
+
+    private static BoatTargetController GetBoat(Collider col)
+    {
+        if (col == null)
+            return null;
+
+        if (s_boatCache.TryGetValue(col, out BoatTargetController cached)
+            && ((object)cached == null || cached != null))   // null thật = không phải tàu; fake-null = tàu đã bị Destroy -> tra lại
+            return cached;
+
+        if (s_boatCache.Count > 1024)
+            s_boatCache.Clear();   // dọn các collider đã bị Destroy
+
+        BoatTargetController found = col.GetComponentInParent<BoatTargetController>();
+        s_boatCache[col] = found;
+        return found;
+    }
+
     public void ResetPass() => passCollider = null;
 
     // Được đi trước: đồng đội cũng đang thấy mình chắn mũi nó (trực diện) và mình có thứ tự ưu tiên cao hơn
@@ -143,7 +165,7 @@ public class BoatSteeringSensors
                 continue;
 
             // Chỉ tránh tàu cùng phe: tàu địch là mục tiêu (Gunner lượn quanh, Banger lao vào)
-            BoatTargetController other = col.GetComponentInParent<BoatTargetController>();
+            BoatTargetController other = GetBoat(col);
             if (other == null)
                 continue;
 
@@ -314,7 +336,7 @@ public class BoatSteeringSensors
             RaycastHit h = obstacleHits[i];
             if (h.distance <= 0f) continue;                 // bắt đầu bên trong vật thể: bỏ qua
             if (h.rigidbody == rb) continue;                // chính mình
-            if (h.collider.GetComponentInParent<BoatTargetController>() != null) continue; // tàu khác: đã có avoidance
+            if (GetBoat(h.collider) != null) continue; // tàu khác: đã có avoidance
             if (h.distance < nearest) { nearest = h.distance; normal = h.normal; }
         }
 

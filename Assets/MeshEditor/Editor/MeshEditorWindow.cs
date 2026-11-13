@@ -1,15 +1,23 @@
-
 using UnityEngine;
 using UnityEditor;
-using UnityEngine.Rendering;
 using System.IO;
+using System.Collections.Generic;
 
 public class MeshEditorWindow : EditorWindow
 {
     private GameObject target;
 
-    private bool brushEnabled = true;
-    private float brushRadius = 0.3f;
+    private bool maskEnabled = true;
+    private Texture2D explosiveMask;
+    private float maskSize = 0.6f;
+    private float alphaThreshold = 0.5f;
+    private float projectionDepth = 0.15f;
+    private float maskRotation = 0f;
+    private int maxSubdivisionDepth = 8;
+
+    // When disabled, a cut skips FillClosedHoles (ear-clipping can be slow on
+    // large cut outlines). Use the "Fill Surface Holes" button to fill manually.
+    private bool autoFill = true;
 
     private bool hasHit;
     private Vector3 hitPoint;
@@ -23,7 +31,29 @@ public class MeshEditorWindow : EditorWindow
     private const string SaveFolder =
         "Assets/MeshEditor/Generated";
 
-    [MenuItem("Tools/Mesh Editor")]
+    // Surface Fill
+    private Mesh baseMesh;
+    private List<FillRegion> fillRegions =
+        new List<FillRegion>();
+
+    private bool showFillRegions = true;
+
+    private Vector2 scrollPosition;
+
+    // ---- Raycast cache ---------------------------------------------------
+    private Mesh rayCachedMesh;
+    private int rayCachedVertexCount;
+    private Vector3[] rayVertices;
+    private int[][] raySubmeshTriangles;
+    private Ray lastRay;
+    private bool lastRayValid;
+    private bool raycastDirty = true;
+
+    // ---- Mask cache bookkeeping -----------------------------------------
+    private Texture2D maskCacheTexture;
+    private System.DateTime maskCacheStamp;
+
+    [MenuItem("Tools/Edit Mesh/Mesh Editor")]
     public static void Open()
     {
         GetWindow<MeshEditorWindow>("Mesh Editor");
@@ -32,17 +62,31 @@ public class MeshEditorWindow : EditorWindow
     private void OnEnable()
     {
         SceneView.duringSceneGui += OnSceneGUI;
+        raycastDirty = true;
     }
 
     private void OnDisable()
     {
         SceneView.duringSceneGui -= OnSceneGUI;
+
+        InvalidateRaycastCache();
+        MeshGeometry.ClearMaskCache();
     }
 
     private void OnSelectionChange()
     {
+        raycastDirty = true;
         Repaint();
         SceneView.RepaintAll();
+    }
+
+    private void InvalidateRaycastCache()
+    {
+        rayCachedMesh = null;
+        rayVertices = null;
+        raySubmeshTriangles = null;
+        lastRayValid = false;
+        raycastDirty = true;
     }
 
     private void OnGUI()
@@ -64,74 +108,361 @@ public class MeshEditorWindow : EditorWindow
         if (GUILayout.Button("Use Selected Object"))
         {
             target = Selection.activeGameObject;
+
+            ResetFillData();
+            raycastDirty = true;
         }
 
         EditorGUILayout.Space();
 
-        brushEnabled = EditorGUILayout.Toggle(
-            "Enable Brush",
-            brushEnabled
-        );
+        maskEnabled = EditorGUILayout.Toggle("Enable Explosive Mask", maskEnabled);
 
-        brushRadius = EditorGUILayout.Slider(
-            "Brush Radius",
-            brushRadius,
-            0.01f,
-            3f
-        );
-
-        EditorGUILayout.Space();
-
-        if (target != null)
+        Texture2D newMask = (Texture2D)EditorGUILayout.ObjectField(
+            "Alpha Mask", explosiveMask, typeof(Texture2D), false);
+        if (newMask != explosiveMask)
         {
-            meshFilter = target.GetComponent<MeshFilter>();
-
-            if (meshFilter == null)
-            {
-                EditorGUILayout.HelpBox(
-                    "Target does not have MeshFilter.",
-                    MessageType.Error
-                );
-            }
-            else if (meshFilter.sharedMesh == null)
-            {
-                EditorGUILayout.HelpBox(
-                    "MeshFilter has no Mesh.",
-                    MessageType.Error
-                );
-            }
-            else if (!meshFilter.sharedMesh.isReadable)
-            {
-                EditorGUILayout.HelpBox(
-                    "Enable Read/Write in Model Import Settings.",
-                    MessageType.Error
-                );
-            }
-            else
-            {
-                EditorGUILayout.HelpBox(
-                    "Move mouse over the model in Scene View and left-click to remove geometry.",
-                    MessageType.Info
-                );
-            }
+            explosiveMask = newMask;
+            MeshGeometry.ClearMaskCache();
         }
-        else
+
+        maskSize = EditorGUILayout.Slider("Mask Size (World Units)", maskSize, 0.01f, 5f);
+        alphaThreshold = EditorGUILayout.Slider("Alpha Threshold", alphaThreshold, 0f, 1f);
+        projectionDepth = EditorGUILayout.Slider("Projection Depth", projectionDepth, 0.01f, 2f);
+        maskRotation = EditorGUILayout.Slider("Mask Rotation", maskRotation, 0f, 360f);
+        maxSubdivisionDepth = EditorGUILayout.IntSlider("Edge Detail", maxSubdivisionDepth, 4, 10);
+        autoFill = EditorGUILayout.Toggle(
+            new GUIContent("Auto Fill After Cut",
+                "Turn off to make each cut faster. Use 'Fill Surface Holes' to fill manually."),
+            autoFill);
+
+        if (explosiveMask != null)
+        {
+            EditorGUILayout.LabelField("Mask Preview", EditorStyles.boldLabel);
+            GUILayout.Label(explosiveMask, GUILayout.Width(120), GUILayout.Height(120));
+            if (!explosiveMask.isReadable)
+                EditorGUILayout.HelpBox("Enable Read/Write in the texture import settings.", MessageType.Error);
+        }
+
+        EditorGUILayout.Space();
+
+        if (target == null)
         {
             EditorGUILayout.HelpBox(
                 "Assign a GameObject containing MeshFilter.",
                 MessageType.Warning
             );
+
+            return;
         }
+
+        meshFilter = target.GetComponent<MeshFilter>();
+
+        if (meshFilter == null)
+        {
+            EditorGUILayout.HelpBox(
+                "Target does not have MeshFilter.",
+                MessageType.Error
+            );
+
+            return;
+        }
+
+        if (meshFilter.sharedMesh == null)
+        {
+            EditorGUILayout.HelpBox(
+                "MeshFilter has no Mesh.",
+                MessageType.Error
+            );
+
+            return;
+        }
+
+        if (!meshFilter.sharedMesh.isReadable)
+        {
+            EditorGUILayout.HelpBox(
+                "Enable Read/Write in Model Import Settings.",
+                MessageType.Error
+            );
+
+            return;
+        }
+
+        EditorGUILayout.HelpBox(
+            "Move mouse over the model in Scene View and left-click to remove geometry.",
+            MessageType.Info
+        );
+
+        EditorGUILayout.Space();
+
+        if (GUILayout.Button("Fill Surface Holes"))
+        {
+            FillSurfaceHoles();
+        }
+
+        if (GUILayout.Button("Save Current Mesh"))
+        {
+            SaveCurrentMesh();
+        }
+
+        EditorGUILayout.Space();
+
+        DrawFillRegions();
 
         if (GUILayout.Button("Refresh Scene View"))
         {
+            MeshGeometry.ClearMaskCache();
+            InvalidateRaycastCache();
             SceneView.RepaintAll();
         }
     }
 
+    private void FillSurfaceHoles()
+    {
+        if (meshFilter == null ||
+            meshFilter.sharedMesh == null)
+            return;
+
+        Mesh source = meshFilter.sharedMesh;
+
+        Undo.RecordObject(
+            meshFilter,
+            "Fill Surface Holes"
+        );
+
+        ResetFillData();
+        baseMesh = Instantiate(source);
+
+        baseMesh.name = source.name + "_FillBase";
+
+        fillRegions.Clear();
+
+        Mesh result = MeshSurfacePatcher.FillClosedHoles(
+            baseMesh,
+            out fillRegions,
+            0.0001f
+        );
+
+        if (result == null)
+        {
+            DestroyImmediate(baseMesh);
+            baseMesh = null;
+
+            fillRegions.Clear();
+
+            Debug.LogWarning(
+                "No valid closed surface holes found."
+            );
+
+            return;
+        }
+
+        meshFilter.sharedMesh = result;
+        raycastDirty = true;
+
+        EditorUtility.SetDirty(meshFilter);
+
+        SceneView.RepaintAll();
+
+        Repaint();
+
+        Debug.Log(
+            "Surface Fill completed. Regions: " +
+            fillRegions.Count
+        );
+    }
+
+    private void DrawFillRegions()
+    {
+        showFillRegions = EditorGUILayout.Foldout(
+            showFillRegions,
+            "Fill Regions (" + fillRegions.Count + ")",
+            true
+        );
+
+        if (!showFillRegions)
+            return;
+
+        if (fillRegions.Count == 0)
+        {
+            EditorGUILayout.HelpBox(
+                "No Fill Regions. Click Fill Surface Holes first.",
+                MessageType.Info
+            );
+
+            return;
+        }
+
+        EditorGUILayout.BeginVertical(
+            EditorStyles.helpBox
+        );
+
+        scrollPosition = EditorGUILayout.BeginScrollView(
+            scrollPosition,
+            GUILayout.MaxHeight(250)
+        );
+
+        foreach (FillRegion region in fillRegions)
+        {
+            EditorGUILayout.BeginHorizontal();
+
+            EditorGUILayout.LabelField(
+                "Fill Region " + region.regionId
+            );
+
+            bool newVisible = EditorGUILayout.Toggle(
+                region.isVisible,
+                GUILayout.Width(20)
+            );
+
+            if (newVisible != region.isVisible)
+            {
+                SetFillRegionVisible(
+                    region.regionId,
+                    newVisible
+                );
+            }
+
+            EditorGUILayout.EndHorizontal();
+        }
+
+        EditorGUILayout.EndScrollView();
+
+        EditorGUILayout.EndVertical();
+
+        EditorGUILayout.Space();
+
+        if (GUILayout.Button("Show All Fill Regions"))
+        {
+            SetAllFillRegionsVisible(true);
+        }
+
+        if (GUILayout.Button("Hide All Fill Regions"))
+        {
+            SetAllFillRegionsVisible(false);
+        }
+    }
+
+    private void SetFillRegionVisible(
+        int regionId,
+        bool visible)
+    {
+        FillRegion region = fillRegions.Find(
+            r => r.regionId == regionId
+        );
+
+        if (region == null || baseMesh == null)
+            return;
+
+        Undo.RecordObject(
+            meshFilter,
+            "Toggle Fill Region"
+        );
+
+        region.isVisible = visible;
+
+        RebuildFilledMesh();
+    }
+
+    private void SetAllFillRegionsVisible(bool visible)
+    {
+        if (baseMesh == null)
+            return;
+
+        Undo.RecordObject(
+            meshFilter,
+            "Toggle All Fill Regions"
+        );
+
+        foreach (FillRegion region in fillRegions)
+        {
+            region.isVisible = visible;
+        }
+
+        RebuildFilledMesh();
+    }
+
+    private void RebuildFilledMesh()
+    {
+        if (baseMesh == null)
+            return;
+
+        Mesh rebuilt = MeshSurfacePatcher.BuildMeshWithRegions(
+            baseMesh,
+            fillRegions
+        );
+
+        if (rebuilt == null)
+            return;
+
+        meshFilter.sharedMesh = rebuilt;
+        raycastDirty = true;
+
+        EditorUtility.SetDirty(meshFilter);
+
+        SceneView.RepaintAll();
+
+        Repaint();
+    }
+
+    private void ResetFillData()
+    {
+        if (baseMesh != null)
+        {
+            DestroyImmediate(baseMesh);
+            baseMesh = null;
+        }
+
+        fillRegions.Clear();
+    }
+
+    private void SaveCurrentMesh()
+    {
+        if (meshFilter == null ||
+            meshFilter.sharedMesh == null)
+            return;
+
+        if (!Directory.Exists(SaveFolder))
+        {
+            Directory.CreateDirectory(SaveFolder);
+            AssetDatabase.Refresh();
+        }
+
+        Mesh source = meshFilter.sharedMesh;
+
+        string path = EditorUtility.SaveFilePanelInProject(
+            "Save Edited Mesh",
+            source.name,
+            "asset",
+            "Choose where to save the mesh."
+        );
+
+        if (string.IsNullOrEmpty(path))
+            return;
+
+        Mesh savedMesh = Instantiate(source);
+        savedMesh.name = source.name;
+
+        AssetDatabase.CreateAsset(savedMesh, path);
+        AssetDatabase.SaveAssets();
+
+        Undo.RecordObject(
+            meshFilter,
+            "Save Edited Mesh"
+        );
+
+        meshFilter.sharedMesh = savedMesh;
+        raycastDirty = true;
+
+        EditorUtility.SetDirty(meshFilter);
+
+        Selection.activeObject = savedMesh;
+
+        Debug.Log("Mesh saved: " + path);
+    }
+
     private void OnSceneGUI(SceneView sceneView)
     {
-        if (!brushEnabled || target == null)
+        if (!maskEnabled || target == null)
             return;
 
         meshFilter = target.GetComponent<MeshFilter>();
@@ -143,44 +474,56 @@ public class MeshEditorWindow : EditorWindow
             return;
         }
 
+        sceneView.wantsMouseMove = true;
+
         Event e = Event.current;
 
         Ray ray = HandleUtility.GUIPointToWorldRay(
             e.mousePosition
         );
 
-        hasHit = TryRaycastMesh(
-            ray,
-            meshFilter,
-            out hitPoint,
-            out hitNormal,
-            out hitSubmesh,
-            out hitTriangle
-        );
+        bool rayChanged =
+            raycastDirty ||
+            !lastRayValid ||
+            (ray.origin - lastRay.origin).sqrMagnitude > 1e-10f ||
+            (ray.direction - lastRay.direction).sqrMagnitude > 1e-10f;
+
+        if (rayChanged)
+        {
+            lastRay = ray;
+            lastRayValid = true;
+            raycastDirty = false;
+
+            hasHit = TryRaycastMesh(
+                ray,
+                meshFilter,
+                out hitPoint,
+                out hitNormal,
+                out hitSubmesh,
+                out hitTriangle
+            );
+
+            if (e.type != EventType.Repaint)
+                sceneView.Repaint();
+        }
 
         if (!hasHit)
             return;
 
-        // Draw brush
-        Handles.color = Color.red;
+        Handles.color = Color.cyan;
+        Handles.DrawWireDisc(hitPoint, hitNormal, maskSize * 0.5f);
+        Handles.DrawLine(hitPoint, hitPoint + hitNormal * 0.15f);
 
-        Handles.DrawWireDisc(
-            hitPoint,
-            hitNormal,
-            brushRadius
-        );
+        if (explosiveMask != null)
+        {
+            Handles.BeginGUI();
+            Rect previewRect = new Rect(e.mousePosition.x + 18f, e.mousePosition.y + 18f, 92f, 92f);
+            GUI.color = Color.white;
+            GUI.DrawTexture(previewRect, explosiveMask, ScaleMode.ScaleToFit, true);
+            GUI.color = Color.white;
+            Handles.EndGUI();
+        }
 
-        Handles.color = new Color(
-            1f, 0f, 0f, 0.12f
-        );
-
-        Handles.DrawSolidDisc(
-            hitPoint,
-            hitNormal,
-            brushRadius
-        );
-
-        // Prevent Unity selection while brushing
         if (e.type == EventType.Layout)
         {
             HandleUtility.AddDefaultControl(
@@ -190,7 +533,6 @@ public class MeshEditorWindow : EditorWindow
             );
         }
 
-        // Remove geometry
         if (e.type == EventType.MouseDown &&
             e.button == 0 &&
             !e.alt)
@@ -199,8 +541,31 @@ public class MeshEditorWindow : EditorWindow
 
             e.Use();
         }
+    }
 
-        sceneView.Repaint();
+    private void EnsureRaycastCache(Mesh mesh)
+    {
+        if (rayCachedMesh == mesh &&
+            rayVertices != null &&
+            raySubmeshTriangles != null &&
+            rayCachedVertexCount == mesh.vertexCount &&
+            raySubmeshTriangles.Length == mesh.subMeshCount)
+        {
+            return;
+        }
+
+        rayCachedMesh = mesh;
+        rayCachedVertexCount = mesh.vertexCount;
+        rayVertices = mesh.vertices;
+        raySubmeshTriangles = new int[mesh.subMeshCount][];
+
+        for (int s = 0; s < mesh.subMeshCount; s++)
+        {
+            raySubmeshTriangles[s] =
+                mesh.GetTopology(s) == MeshTopology.Triangles
+                    ? mesh.GetTriangles(s)
+                    : null;
+        }
     }
 
     private bool TryRaycastMesh(
@@ -219,64 +584,83 @@ public class MeshEditorWindow : EditorWindow
 
         Mesh mesh = filter.sharedMesh;
 
-        Vector3[] vertices = mesh.vertices;
+        EnsureRaycastCache(mesh);
+
+        Transform meshTransform = filter.transform;
+
+        // Transform the ray into local space once, instead of transforming
+        // every triangle vertex into world space. The ray parameter t is the
+        // same in both spaces because the direction is transformed with it.
+        Matrix4x4 worldToLocal = meshTransform.worldToLocalMatrix;
+        Vector3 localOrigin = worldToLocal.MultiplyPoint3x4(ray.origin);
+        Vector3 localDirection = worldToLocal.MultiplyVector(ray.direction);
+
+        // Cheap early-out: ray misses the mesh bounds entirely.
+        Bounds bounds = mesh.bounds;
+        bounds.Expand(Mathf.Max(bounds.size.magnitude * 0.001f, 1e-4f));
+        if (!bounds.IntersectRay(new Ray(localOrigin, localDirection)))
+            return false;
 
         float closestDistance = float.MaxValue;
+        int bestSubmesh = -1;
+        int bestIndex = -1;
 
-        for (int s = 0; s < mesh.subMeshCount; s++)
+        for (int s = 0; s < raySubmeshTriangles.Length; s++)
         {
-            if (mesh.GetTopology(s) != MeshTopology.Triangles)
-                continue;
+            int[] triangles = raySubmeshTriangles[s];
 
-            int[] triangles = mesh.GetTriangles(s);
+            if (triangles == null)
+                continue;
 
             for (int i = 0; i < triangles.Length; i += 3)
             {
-                Vector3 a = filter.transform.TransformPoint(
-                    vertices[triangles[i]]
-                );
-
-                Vector3 b = filter.transform.TransformPoint(
-                    vertices[triangles[i + 1]]
-                );
-
-                Vector3 c = filter.transform.TransformPoint(
-                    vertices[triangles[i + 2]]
-                );
-
                 if (!RayTriangle(
-                    ray, a, b, c, out float distance))
+                    localOrigin,
+                    localDirection,
+                    rayVertices[triangles[i]],
+                    rayVertices[triangles[i + 1]],
+                    rayVertices[triangles[i + 2]],
+                    out float distance))
                     continue;
 
                 if (distance >= closestDistance)
                     continue;
 
                 closestDistance = distance;
-
-                point = ray.GetPoint(distance);
-
-                normal = Vector3.Cross(
-                    b - a,
-                    c - a
-                ).normalized;
-
-                // Account for mirrored transforms
-                if (filter.transform.localToWorldMatrix
-                    .determinant < 0)
-                {
-                    normal = -normal;
-                }
-
-                submeshIndex = s;
-                triangleIndex = i / 3;
+                bestSubmesh = s;
+                bestIndex = i;
             }
         }
 
-        return submeshIndex >= 0;
+        if (bestSubmesh < 0)
+            return false;
+
+        int[] bestTriangles = raySubmeshTriangles[bestSubmesh];
+
+        // World-space normal is only needed for the single closest triangle.
+        Vector3 a = meshTransform.TransformPoint(rayVertices[bestTriangles[bestIndex]]);
+        Vector3 b = meshTransform.TransformPoint(rayVertices[bestTriangles[bestIndex + 1]]);
+        Vector3 c = meshTransform.TransformPoint(rayVertices[bestTriangles[bestIndex + 2]]);
+
+        point = ray.GetPoint(closestDistance);
+
+        normal = Vector3.Cross(
+            b - a,
+            c - a
+        ).normalized;
+
+        if (meshTransform.localToWorldMatrix.determinant < 0)
+            normal = -normal;
+
+        submeshIndex = bestSubmesh;
+        triangleIndex = bestIndex / 3;
+
+        return true;
     }
 
-    private bool RayTriangle(
-        Ray ray,
+    private static bool RayTriangle(
+        Vector3 origin,
+        Vector3 direction,
         Vector3 a,
         Vector3 b,
         Vector3 c,
@@ -288,7 +672,7 @@ public class MeshEditorWindow : EditorWindow
         Vector3 edge2 = c - a;
 
         Vector3 p = Vector3.Cross(
-            ray.direction,
+            direction,
             edge2
         );
 
@@ -297,51 +681,75 @@ public class MeshEditorWindow : EditorWindow
             p
         );
 
-        if (Mathf.Abs(determinant) < 0.000001f)
+        if (Mathf.Abs(determinant) < 1e-9f)
             return false;
 
         float inv = 1f / determinant;
 
-        Vector3 t = ray.origin - a;
+        Vector3 tvec = origin - a;
 
-        float u = Vector3.Dot(t, p) * inv;
+        float u = Vector3.Dot(tvec, p) * inv;
 
         if (u < 0f || u > 1f)
             return false;
 
-        Vector3 q = Vector3.Cross(t, edge1);
+        Vector3 q = Vector3.Cross(tvec, edge1);
 
         float v = Vector3.Dot(
-            ray.direction,
+            direction,
             q
         ) * inv;
 
         if (v < 0f || u + v > 1f)
             return false;
 
-        if (u + v > 1f)
-            return false;
-
         distance = Vector3.Dot(edge2, q) * inv;
 
         return distance >= 0f;
     }
-    
+
+    // Drops the cached mask data if the same Texture2D asset was reimported/edited.
+    private void SyncMaskCache()
+    {
+        System.DateTime stamp = default;
+        string path = AssetDatabase.GetAssetPath(explosiveMask);
+
+        if (!string.IsNullOrEmpty(path) && File.Exists(path))
+            stamp = File.GetLastWriteTimeUtc(path);
+
+        if (explosiveMask != maskCacheTexture || stamp != maskCacheStamp)
+        {
+            MeshGeometry.ClearMaskCache();
+            maskCacheTexture = explosiveMask;
+            maskCacheStamp = stamp;
+        }
+    }
+
     private void RemoveGeometry()
     {
         if (meshFilter == null || !hasHit)
             return;
 
+        if (explosiveMask == null)
+        {
+            Debug.LogWarning("Assign an Explosive Alpha Mask first.");
+            return;
+        }
+
+        if (!explosiveMask.isReadable)
+        {
+            Debug.LogError("Explosive Mask must have Read/Write Enabled.");
+            return;
+        }
+
         Mesh source = meshFilter.sharedMesh;
 
-        Mesh result = MeshGeometry.RemoveBrush(
-            source,
-            meshFilter.transform,
-            hitPoint,
-            brushRadius,
-            hitSubmesh,
-            hitTriangle,
-            hitNormal
+        SyncMaskCache();
+
+        Mesh result = MeshGeometry.RemoveExplosiveMask(
+            source, meshFilter.transform, hitPoint, hitNormal, explosiveMask,
+            maskSize, alphaThreshold, projectionDepth, 0.1f,
+            maxSubdivisionDepth, maskRotation
         );
 
         if (result == null)
@@ -349,41 +757,77 @@ public class MeshEditorWindow : EditorWindow
             Debug.LogWarning(
                 "Mesh removal failed."
             );
+
             return;
         }
-
-        if (!Directory.Exists(SaveFolder))
-        {
-            Directory.CreateDirectory(SaveFolder);
-            AssetDatabase.Refresh();
-        }
-
-        string path = AssetDatabase.GenerateUniqueAssetPath(
-            SaveFolder + "/" +
-            source.name + "_Edited.asset"
-        );
-
-        AssetDatabase.CreateAsset(result, path);
-
-        AssetDatabase.SaveAssets();
 
         Undo.RecordObject(
             meshFilter,
             "Remove Mesh Geometry"
         );
 
-        meshFilter.sharedMesh = result;
+        // NOTE: the mesh is no longer written to disk on every click
+        // (CreateAsset + SaveAssets was the most expensive part for large meshes).
+        // Use "Save Current Mesh" when you want to keep the result as an asset.
+        ResetFillData();
+
+        Mesh display = result;
+
+        if (autoFill)
+        {
+            // Keep the unfilled cut mesh as the base, then create independently
+            // manageable Fill Regions from its new surface boundaries.
+            baseMesh = result;
+
+            Mesh filledResult = MeshSurfacePatcher.FillClosedHoles(
+                baseMesh, out fillRegions, 0.0001f);
+
+            if (filledResult != null)
+            {
+                display = filledResult;
+            }
+            else
+            {
+                // Nothing was filled: the cut mesh itself is displayed, so it must
+                // not also be tracked (and later destroyed) as the fill base.
+                baseMesh = null;
+                fillRegions.Clear();
+            }
+        }
+
+        meshFilter.sharedMesh = display;
 
         EditorUtility.SetDirty(meshFilter);
-
         hasHit = false;
-
+        raycastDirty = true;
         SceneView.RepaintAll();
-
         Repaint();
 
-        Debug.Log(
-            "Mesh removed successfully: " + path
-        );
+        Debug.Log("Explosive Mask removal completed. Fill Regions: " +
+            fillRegions.Count + ". Use 'Save Current Mesh' to save it as an asset.");
+    }
+    public void SetFillVisible(int regionId, bool visible)
+    {
+        SetFillRegionVisible(regionId, visible);
+    }
+
+    public void EnableFill(int regionId)
+    {
+        SetFillRegionVisible(regionId, true);
+    }
+
+    public void DisableFill(int regionId)
+    {
+        SetFillRegionVisible(regionId, false);
+    }
+
+    public void EnableAllFill()
+    {
+        SetAllFillRegionsVisible(true);
+    }
+
+    public void DisableAllFill()
+    {
+        SetAllFillRegionsVisible(false);
     }
 }

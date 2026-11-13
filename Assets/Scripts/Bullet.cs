@@ -38,7 +38,6 @@ public class Bullet : MonoBehaviour
         }
     }
 
-    // Bắn theo hướng 3D (giữ trục y), vd: máy bay bắn chéo từ trên trời xuống
     public void InitDirection(BoatTeam team, Vector3 direction, float damageAmount)
     {
         rb = GetComponent<Rigidbody>();
@@ -98,7 +97,6 @@ public class Bullet : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        // Đã trúng 1 tàu trong cùng bước vật lý / đã trả về pool: không gây sát thương lần nữa
         if (!gameObject.activeInHierarchy)
             return;
 
@@ -115,7 +113,6 @@ public class Bullet : MonoBehaviour
 
         if (health != null)
         {
-            // Hướng bay của đạn (A->B): tàu giật đúng theo hướng này, không phải từ điểm trúng vào tâm tàu
             Vector3 travel = rb != null && rb.linearVelocity.sqrMagnitude > 0.0001f
                 ? rb.linearVelocity
                 : transform.forward;
@@ -127,7 +124,6 @@ public class Bullet : MonoBehaviour
 
     private void Despawn()
     {
-        // Đạn hết giờ mà chưa từng được Init (rb chưa gán) thì vẫn trả về pool được
         if (rb == null)
             rb = GetComponent<Rigidbody>();
 

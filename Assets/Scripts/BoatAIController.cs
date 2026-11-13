@@ -23,7 +23,6 @@ public class BoatAIController : MonoBehaviour
     public BoatStats Stats => stats;
     public BoatData Data => data;
 
-    // Id riêng của từng tàu người chơi (mỗi lần mua một id) để nâng cấp không dùng chung giữa các tàu cùng loại
     public string InstanceId { get; private set; }
 
     private const float IdleSpeed = 0.3f;        // chạy chậm hơn mức này coi như đang đứng yên

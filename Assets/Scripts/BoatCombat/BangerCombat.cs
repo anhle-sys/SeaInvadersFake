@@ -7,6 +7,12 @@ public class BangerCombat : BoatCombatBase, IBoatMovementModifier
     private BoatStats stats;
     private bool exploded;
 
+    // Buffer dùng chung cho mọi vụ nổ: không cấp phát Collider[] / HashSet mới mỗi lần
+    private static readonly Collider[] s_explosionHits = new Collider[128];
+    private static readonly HashSet<IDamageable> s_damaged = new HashSet<IDamageable>();
+    private static bool s_explosionBusy;
+    private static readonly Dictionary<GameObject, bool> s_pooledFx = new Dictionary<GameObject, bool>();
+
     private bool charging;   // đang lao vào địch: bỏ qua né đồng đội
 
     // Giữ nguyên tốc độ khi thấy địch: Banger vốn đã chạy nhanh, không tăng vọt tốc độ gây giật
@@ -101,7 +107,7 @@ public class BangerCombat : BoatCombatBase, IBoatMovementModifier
             DealExplosionDamage(primaryTarget);
 
             if (data.explosionPrefab != null)
-                Instantiate(data.explosionPrefab, transform.position, Quaternion.identity);
+                SpawnExplosionFx();
         }
         finally
         {
@@ -110,29 +116,81 @@ public class BangerCombat : BoatCombatBase, IBoatMovementModifier
         }
     }
 
-    private void DealExplosionDamage(IDamageable primaryTarget)
+// Prefab có PooledParticleFx thì lấy từ SimplePool2 (tự trả pool), nếu không giữ nguyên Instantiate như cũ.
+    private void SpawnExplosionFx()
     {
-        Collider[] cols = Physics.OverlapSphere(
-            transform.position,
-            data.explosionRadius,
-            data.damageLayers,
-            QueryTriggerInteraction.Ignore);
-
-        HashSet<IDamageable> damaged = new HashSet<IDamageable>();
-        float damage = stats != null ? stats.RollDamage() : data.explosionDamage;
-
-        if (primaryTarget != null && primaryTarget.Team != targetController.Team && damaged.Add(primaryTarget))
-            primaryTarget.TakeDamage(damage, transform.position);
-
-        foreach (Collider col in cols)
+        GameObject prefab = data.explosionPrefab;
+        if (!s_pooledFx.TryGetValue(prefab, out bool pooled))
         {
-            IDamageable target = col.GetComponentInParent<IDamageable>();
+            pooled = prefab.GetComponent<PooledParticleFx>() != null;
+            s_pooledFx[prefab] = pooled;
+        }
 
-            if (target == null || target.Team == targetController.Team)
-                continue;
+        if (pooled)
+            SimplePool2.Spawn(prefab, transform.position, Quaternion.identity);
+        else
+            Instantiate(prefab, transform.position, Quaternion.identity);
+    }
 
-            if (damaged.Add(target))
-                target.TakeDamage(damage, transform.position);
+
+private void DealExplosionDamage(IDamageable primaryTarget)
+    {
+        // Dùng buffer chung; nếu bị gọi lồng (TakeDamage kích nổ Banger khác) thì dùng bản cấp phát riêng cho an toàn.
+        bool shared = !s_explosionBusy;
+        Collider[] cols;
+        int count;
+        HashSet<IDamageable> damaged;
+
+        if (shared)
+        {
+            s_explosionBusy = true;
+            count = Physics.OverlapSphereNonAlloc(
+                transform.position,
+                data.explosionRadius,
+                s_explosionHits,
+                data.damageLayers,
+                QueryTriggerInteraction.Ignore);
+            cols = s_explosionHits;
+            s_damaged.Clear();
+            damaged = s_damaged;
+        }
+        else
+        {
+            cols = Physics.OverlapSphere(
+                transform.position,
+                data.explosionRadius,
+                data.damageLayers,
+                QueryTriggerInteraction.Ignore);
+            count = cols.Length;
+            damaged = new HashSet<IDamageable>();
+        }
+
+        try
+        {
+            float damage = stats != null ? stats.RollDamage() : data.explosionDamage;
+
+            if (primaryTarget != null && primaryTarget.Team != targetController.Team && damaged.Add(primaryTarget))
+                primaryTarget.TakeDamage(damage, transform.position);
+
+            for (int i = 0; i < count; i++)
+            {
+                IDamageable target = cols[i].GetComponentInParent<IDamageable>();
+
+                if (target == null || target.Team == targetController.Team)
+                    continue;
+
+                if (damaged.Add(target))
+                    target.TakeDamage(damage, transform.position);
+            }
+        }
+        finally
+        {
+            if (shared)
+            {
+                System.Array.Clear(s_explosionHits, 0, count);
+                s_damaged.Clear();
+                s_explosionBusy = false;
+            }
         }
     }
 }
