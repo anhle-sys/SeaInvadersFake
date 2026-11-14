@@ -1,0 +1,87 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7e354e84d531c94786f650329854979, type: 3}
+  m_Name: Gunner_HolePattern
+  m_EditorClassIdentifier: Assembly-CSharp-Editor::HolePatternConfig
+  sourceMesh: {fileID: 7733420072633738129, guid: 1c713e58fd782431cafe3a0f209c359c, type: 3}
+  prefab: {fileID: 2368469649159627480, guid: 1ac4a242f9e8ec24d8bacd2c3d764c69, type: 3}
+  hullPath: fishing boat
+  mask: {fileID: 2800000, guid: 2a81d4c45242ae84a8e3a37cf2c93e46, type: 3}
+  alphaThreshold: 0.5
+  edgeDetail: 6
+  maxRetries: 5
+  groups:
+  - name: Hull sides
+    enabled: 1
+    placement: 0
+    includeInDisplay: 1
+    maskSize: 0.45
+    projectionDepth: 0.12
+    alongAxis: 2
+    alongFrom: -1.4
+    alongTo: 2
+    alongStep: 0.62
+    offsets:
+    - 0.45
+    - 0.36
+    oddRowShift: 0
+    sides: 0
+    extraPoints: []
+    requiredSubmesh: -1
+    minSurfaceAlignment: 0.5
+    rotationStep: 53
+  - name: Floor
+    enabled: 1
+    placement: 1
+    includeInDisplay: 1
+    maskSize: 0.45
+    projectionDepth: 0.12
+    alongAxis: 2
+    alongFrom: -1.1
+    alongTo: 1.5
+    alongStep: 0.65
+    offsets:
+    - 0
+    oddRowShift: 0
+    sides: 0
+    extraPoints: []
+    requiredSubmesh: -1
+    minSurfaceAlignment: 0.9
+    rotationStep: 61
+  - name: Bow & stern deck
+    enabled: 1
+    placement: 1
+    includeInDisplay: 1
+    maskSize: 0.35
+    projectionDepth: 0.12
+    alongAxis: 2
+    alongFrom: -1
+    alongTo: 1
+    alongStep: 0
+    offsets:
+    - 0
+    oddRowShift: 0
+    sides: 0
+    extraPoints:
+    - {x: -1.65, y: 0}
+    - {x: 2, y: 0}
+    requiredSubmesh: -1
+    minSurfaceAlignment: 0.9
+    rotationStep: 61
+  displayOutput: {fileID: 4300000, guid: 542785890a25a054fbf6c04ff777c9c9, type: 2}
+  sourceOutput: {fileID: 0}
+  assignToPrefab: 1
+  lastBakeReport: "Bake xong trong 0.5s. Display: 11834 \u0111\u1EC9nh. Source: 11834
+    \u0111\u1EC9nh. L\u1ED7 th\u1EADt (v\xF9ng l\u1EDBn): 40.\n\u2022 Hull sides:
+    c\u1EAFt 12 l\u1ED7.\r\n\u2022 Floor: c\u1EAFt 5 l\u1ED7.\r\n\u2022 Bow & stern
+    deck: c\u1EAFt 2 l\u1ED7.\r\n\u0110\xE3 g\xE1n v\xE0o prefab: MeshFilter = fishing_boat_MaskHoles,
+    Source Mesh = fishing_boat_MaskHoles."

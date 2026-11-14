@@ -423,9 +423,14 @@ MonoBehaviour:
   maxHitRadius: 1.2
   damageRatioForMaxRadius: 0.25
   snapDistance: 0.8
-  minFacingDot: 0
+  minNormalAlignment: 0.5
+  maxDepthBehindImpact: 0.3
   explosionRadiusMultiplier: 1.5
   minDamageRegionArea: 0.001
+  upwardRegionsAsDecals: 0
+  decalMaterial: {fileID: 0}
+  decalMinUp: 0.7
+  decalOffset: 0.003
   drawHitGizmos: 0
 --- !u!4 &652861714544183229 stripped
 Transform:

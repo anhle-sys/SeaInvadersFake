@@ -1,0 +1,69 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7e354e84d531c94786f650329854979, type: 3}
+  m_Name: Carrier_HolePattern
+  m_EditorClassIdentifier: Assembly-CSharp-Editor::HolePatternConfig
+  sourceMesh: {fileID: 4300000, guid: c753004960140ed45bfa5375cb981a28, type: 2}
+  prefab: {fileID: 5261690935475611637, guid: 23fe9718e2d1d6444a0e617822606951, type: 3}
+  hullPath: Mesh
+  mask: {fileID: 2800000, guid: 2a81d4c45242ae84a8e3a37cf2c93e46, type: 3}
+  alphaThreshold: 0.5
+  edgeDetail: 6
+  maxRetries: 5
+  groups:
+  - name: Hull sides
+    enabled: 1
+    placement: 0
+    includeInDisplay: 1
+    maskSize: 0.6
+    projectionDepth: 0.15
+    alongAxis: 0
+    alongFrom: -296
+    alongTo: -10
+    alongStep: 27
+    offsets:
+    - 20
+    oddRowShift: 0
+    sides: 0
+    extraPoints: []
+    requiredSubmesh: 10
+    minSurfaceAlignment: 0.5
+    rotationStep: 47
+  - name: Flight deck
+    enabled: 1
+    placement: 1
+    includeInDisplay: 0
+    maskSize: 0.7
+    projectionDepth: 0.006
+    alongAxis: 0
+    alongFrom: -290
+    alongTo: -15
+    alongStep: 32
+    offsets:
+    - -20
+    - 0
+    - 20
+    oddRowShift: 16
+    sides: 0
+    extraPoints: []
+    requiredSubmesh: 2
+    minSurfaceAlignment: 0.9
+    rotationStep: 61
+  displayOutput: {fileID: 4300000, guid: 7422048234cbf9242b63d61afacbbdb9, type: 2}
+  sourceOutput: {fileID: 4300000, guid: cb4ad38b93cd06e4eb595bb03255d976, type: 2}
+  assignToPrefab: 1
+  lastBakeReport: "Bake xong trong 2.1s. Display: 35644 \u0111\u1EC9nh. Source: 41910
+    \u0111\u1EC9nh. L\u1ED7 th\u1EADt (v\xF9ng l\u1EDBn): 47.\n\u2022 Hull sides:
+    c\u1EAFt 22 l\u1ED7 (th\u1EED l\u1EA1i 4).\r\n\u2022 Flight deck: c\u1EAFt 23
+    l\u1ED7 (th\u1EED l\u1EA1i 1), b\u1ECF qua 4 \u0111i\u1EC3m kh\xF4ng tr\xFAng
+    b\u1EC1 m\u1EB7t ph\xF9 h\u1EE3p.\r\n\u0110\xE3 g\xE1n v\xE0o prefab: MeshFilter
+    = CarrierCombine_SideHoles, Source Mesh = CarrierCombine_Holes."
