@@ -11,9 +11,6 @@ public static class SimplePool2
     // are going to be exceptionally large (for example, your bullets.)
     private const int DEFAULT_POOL_SIZE = 3;
 
-    /// <summary>
-    /// The Pool class represents the pool for a particular prefab.
-    /// </summary>
     public class Pool
     {
         // We append an id to the name of anything we instantiate.
@@ -139,9 +136,6 @@ public static class SimplePool2
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics() => _pools = null;
 
-    /// <summary>
-    /// Initialize our dictionary.
-    /// </summary>
     private static void Init(GameObject prefab = null, int qty = DEFAULT_POOL_SIZE)
     {
         if (_pools == null)
@@ -163,14 +157,6 @@ public static class SimplePool2
         _pools[prefab.GetInstanceID()].Preload(qty, newParent);
     }
 
-    /// <summary>
-    /// If you want to preload a few copies of an object at the start
-    /// of a scene, you can use this. Really not needed unless you're
-    /// going to go from zero instances to 100+ very quickly.
-    /// Could technically be optimized more, but in practice the
-    /// Spawn/Despawn sequence is going to be pretty darn quick and
-    /// this avoids code duplication.
-    /// </summary>
     public static GameObject[] Preload(GameObject prefab, int qty = 1, Transform newParent = null)
     {
         Init(prefab, qty);
@@ -189,14 +175,6 @@ public static class SimplePool2
         return obs;
     }
 
-    /// <summary>
-    /// Spawns a copy of the specified prefab (instantiating one if required).
-    /// NOTE: Remember that Awake() or Start() will only run on the very first
-    /// spawn and that member variables won't get reset.  OnEnable will run
-    /// after spawning -- but remember that toggling IsActive will also
-    /// call that function.
-    /// </summary>
-    /// 
     public static GameObject Spawn(GameObject prefab, Vector3 pos, Quaternion rot)
     {
         Init(prefab);
@@ -220,9 +198,6 @@ public static class SimplePool2
         return _pools[prefab.gameObject.GetInstanceID()].Spawn<T>(pos, rot);
     }
 
-    /// <summary>
-    /// Despawn the specified gameobject back into its pool.
-    /// </summary>
     public static void Despawn(GameObject obj)
     {
         if (obj == null)

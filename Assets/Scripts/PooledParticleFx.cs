@@ -1,9 +1,5 @@
 using UnityEngine;
 
-/// <summary>
-/// Hiệu ứng particle dùng với SimplePool2: mỗi lần được Spawn (OnEnable) thì chạy lại từ đầu,
-/// sau `lifetime` giây tự trả về pool. Hiệu ứng trúng đạn xuất hiện liên tục nên không Instantiate/Destroy mỗi lần.
-/// </summary>
 public class PooledParticleFx : MonoBehaviour
 {
     [Tooltip("Thời gian (giây) trước khi trả về pool, nên >= lifetime dài nhất của particle")]

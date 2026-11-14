@@ -38,6 +38,11 @@ public class MeshEditorWindow : EditorWindow
 
     private bool showFillRegions = true;
 
+    // The mesh currently shown that was built from baseMesh + fill patches.
+    // While it is displayed, the next cut is applied to baseMesh instead, so
+    // the (many, thin) patch triangles are never cut as real geometry.
+    private Mesh filledDisplayMesh;
+
     private Vector2 scrollPosition;
 
     // ---- Raycast cache ---------------------------------------------------
@@ -48,6 +53,16 @@ public class MeshEditorWindow : EditorWindow
     private Ray lastRay;
     private bool lastRayValid;
     private bool raycastDirty = true;
+
+    // ---- Deferred cut (instant click feedback) ----------------------------
+    // A click is acknowledged immediately (indicator drawn this frame) and the
+    // cut runs on the next editor update, so the Scene View never looks frozen
+    // without feedback. Clicks while a cut is pending are ignored, not queued.
+    private enum CutState { Idle, Requested, Drawn }
+    private CutState cutState = CutState.Idle;
+    private Vector3 pendingPoint;
+    private Vector3 pendingNormal;
+    private float pendingRadius;
 
     // ---- Mask cache bookkeeping -----------------------------------------
     private Texture2D maskCacheTexture;
@@ -69,6 +84,7 @@ public class MeshEditorWindow : EditorWindow
     {
         SceneView.duringSceneGui -= OnSceneGUI;
 
+        cutState = CutState.Idle;
         InvalidateRaycastCache();
         MeshGeometry.ClearMaskCache();
     }
@@ -129,7 +145,11 @@ public class MeshEditorWindow : EditorWindow
         alphaThreshold = EditorGUILayout.Slider("Alpha Threshold", alphaThreshold, 0f, 1f);
         projectionDepth = EditorGUILayout.Slider("Projection Depth", projectionDepth, 0.01f, 2f);
         maskRotation = EditorGUILayout.Slider("Mask Rotation", maskRotation, 0f, 360f);
-        maxSubdivisionDepth = EditorGUILayout.IntSlider("Edge Detail", maxSubdivisionDepth, 4, 10);
+        maxSubdivisionDepth = EditorGUILayout.IntSlider(
+            new GUIContent("Edge Detail",
+                "Cut outline resolution on the mask (8 = 1/64, 10 = 1/256 of the mask size). " +
+                "Higher is finer but each step roughly doubles the cut time."),
+            maxSubdivisionDepth, 4, 10);
         autoFill = EditorGUILayout.Toggle(
             new GUIContent("Auto Fill After Cut",
                 "Turn off to make each cut faster. Use 'Fill Surface Holes' to fill manually."),
@@ -257,6 +277,7 @@ public class MeshEditorWindow : EditorWindow
         }
 
         meshFilter.sharedMesh = result;
+        filledDisplayMesh = result;
         raycastDirty = true;
 
         EditorUtility.SetDirty(meshFilter);
@@ -395,6 +416,7 @@ public class MeshEditorWindow : EditorWindow
             return;
 
         meshFilter.sharedMesh = rebuilt;
+        filledDisplayMesh = rebuilt;
         raycastDirty = true;
 
         EditorUtility.SetDirty(meshFilter);
@@ -412,6 +434,7 @@ public class MeshEditorWindow : EditorWindow
             baseMesh = null;
         }
 
+        filledDisplayMesh = null;
         fillRegions.Clear();
     }
 
@@ -478,6 +501,27 @@ public class MeshEditorWindow : EditorWindow
 
         Event e = Event.current;
 
+        if (cutState != CutState.Idle)
+        {
+            DrawPendingCut(e);
+
+            if (e.type == EventType.Layout)
+                HandleUtility.AddDefaultControl(GUIUtility.GetControlID(FocusType.Passive));
+
+            // Swallow clicks while the cut is pending/processing.
+            if (e.type == EventType.MouseDown && e.button == 0 && !e.alt)
+                e.Use();
+
+            // Only start the work once the indicator has actually been drawn.
+            if (e.type == EventType.Repaint && cutState == CutState.Requested)
+            {
+                cutState = CutState.Drawn;
+                EditorApplication.delayCall += ExecutePendingCut;
+            }
+
+            return;
+        }
+
         Ray ray = HandleUtility.GUIPointToWorldRay(
             e.mousePosition
         );
@@ -537,9 +581,64 @@ public class MeshEditorWindow : EditorWindow
             e.button == 0 &&
             !e.alt)
         {
-            RemoveGeometry();
+            RequestCut(sceneView);
 
             e.Use();
+        }
+    }
+
+    private void RequestCut(SceneView sceneView)
+    {
+        if (!hasHit || explosiveMask == null || !explosiveMask.isReadable)
+        {
+            RemoveGeometry(); // logs the reason
+            return;
+        }
+
+        pendingPoint = hitPoint;
+        pendingNormal = hitNormal;
+        pendingRadius = maskSize * 0.5f;
+        cutState = CutState.Requested;
+        sceneView.Repaint();
+    }
+
+    private void DrawPendingCut(Event e)
+    {
+        if (e.type != EventType.Repaint)
+            return;
+
+        Color fill = new Color(1f, 0.55f, 0.1f, 0.35f);
+        Handles.color = fill;
+        Handles.DrawSolidDisc(pendingPoint, pendingNormal, pendingRadius);
+        Handles.color = new Color(1f, 0.55f, 0.1f, 1f);
+        Handles.DrawWireDisc(pendingPoint, pendingNormal, pendingRadius);
+
+        Handles.BeginGUI();
+        Vector2 gui = HandleUtility.WorldToGUIPoint(pendingPoint);
+        GUI.Label(new Rect(gui.x + 12f, gui.y - 10f, 120f, 20f), "Cutting...", EditorStyles.whiteBoldLabel);
+        Handles.EndGUI();
+    }
+
+    private void ExecutePendingCut()
+    {
+        if (cutState != CutState.Drawn)
+            return;
+
+        try
+        {
+            if (meshFilter != null && meshFilter.sharedMesh != null)
+            {
+                hasHit = true;
+                hitPoint = pendingPoint;
+                hitNormal = pendingNormal;
+                RemoveGeometry();
+            }
+        }
+        finally
+        {
+            cutState = CutState.Idle;
+            raycastDirty = true;
+            SceneView.RepaintAll();
         }
     }
 
@@ -742,7 +841,13 @@ public class MeshEditorWindow : EditorWindow
             return;
         }
 
-        Mesh source = meshFilter.sharedMesh;
+        // Cut the unfilled base when the filled preview is displayed: cutting
+        // the fill patches multiplied the work ~15x and their slivers left debris.
+        Mesh source =
+            baseMesh != null && filledDisplayMesh != null &&
+            meshFilter.sharedMesh == filledDisplayMesh
+                ? baseMesh
+                : meshFilter.sharedMesh;
 
         SyncMaskCache();
 
@@ -785,6 +890,7 @@ public class MeshEditorWindow : EditorWindow
             if (filledResult != null)
             {
                 display = filledResult;
+                filledDisplayMesh = filledResult;
             }
             else
             {

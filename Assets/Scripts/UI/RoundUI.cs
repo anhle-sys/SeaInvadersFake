@@ -2,10 +2,6 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>
-/// Thanh round của battle (nhóm "Top"): mỗi ô con là 1 round.
-/// Số ô = số round của một battle. Đã thắng / đang đánh / chưa tới hiển thị khác màu.
-/// </summary>
 public class RoundUI : MonoBehaviour
 {
     [Tooltip("Các ô round theo thứ tự. Để trống thì tự lấy Image của các con trực tiếp")]

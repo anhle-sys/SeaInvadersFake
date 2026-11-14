@@ -7,7 +7,8 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
 
     [SerializeField] private BoatTargetController targetController;
     [SerializeField] private MeshStateController meshStateController;
-    [SerializeField] private ProjectileDestructionBridge destructionBridge;
+    [Tooltip("Mở các Fill Region (lộ lỗ thủng) quanh điểm trúng đạn, bán kính theo sát thương. Để trống sẽ tự tìm trong con.")]
+    [SerializeField] private RuntimeMeshFillController fillController;
     [SerializeField] private Vector3 barOffset = new Vector3(0, 2f, 0);
 
     private BoatData data;
@@ -31,9 +32,8 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
         if (targetController == null)
             targetController = GetComponent<BoatTargetController>();
 
-        // Prefab có hệ destruction (mesh bị khoét theo vết đạn) thì tự lấy cầu nối
-        if (destructionBridge == null)
-            destructionBridge = GetComponentInChildren<ProjectileDestructionBridge>(true);
+        if (fillController == null)
+            fillController = GetComponentInChildren<RuntimeMeshFillController>(true);
     }
 
     public void Setup(BoatData boatData, BoatStats boatStats)
@@ -66,9 +66,12 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
 
     // Vụ nổ / nguồn không có hướng bay: đẩy từ nguồn ra xa tâm tàu
     public void TakeDamage(float amount, Vector3 sourcePosition) =>
-        TakeDamage(amount, sourcePosition, transform.position - sourcePosition);
+        ApplyDamage(amount, sourcePosition, transform.position - sourcePosition, true);
 
-    public void TakeDamage(float amount, Vector3 sourcePosition, Vector3 hitDirection)
+    public void TakeDamage(float amount, Vector3 sourcePosition, Vector3 hitDirection) =>
+        ApplyDamage(amount, sourcePosition, hitDirection, false);
+
+    private void ApplyDamage(float amount, Vector3 sourcePosition, Vector3 hitDirection, bool isExplosion)
     {
         if (isDead || stats == null)
             return;
@@ -81,7 +84,7 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
             amount * MinDamageRatio
         );
 
-        Vector3 impactDirection = hitDirection; // giữ hướng 3D gốc cho destruction (hitDirection bên dưới bị ép y = 0)
+        Vector3 impactDirection = hitDirection; // hướng 3D gốc cho Fill Region (hitDirection bên dưới bị ép y = 0)
 
         health -= amount;
 
@@ -100,10 +103,14 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
             hitDirection
         );
 
-        if (health > 0f && destructionBridge != null)
-            destructionBridge.Apply(amount, sourcePosition, impactDirection);
-
         UpdateMeshByHealth();
+
+        if (health > 0f && fillController != null)
+            fillController.ApplyHit(
+                sourcePosition,
+                impactDirection,
+                amount / Mathf.Max(stats.MaxHealth, 0.01f),
+                isExplosion);
 
         if (health <= 0f)
             Die();
@@ -141,6 +148,7 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
 
         meshStateController.SetState(meshIndex);
     }
+
     private void OnDestroy()
     {
         if (!isDead)

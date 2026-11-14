@@ -130,7 +130,6 @@ public class BoatMovementController : MonoBehaviour
         appliedKnockback = pendingKnockback = Vector3.zero;
     }
 
-    /// <summary>Đẩy tàu theo hướng lực tác động (hướng bay của đạn / từ tâm vụ nổ ra).</summary>
     public void ApplyKnockback(Vector3 pushDirection, float strength01)
     {
         if (knockbackSpeed <= 0f || !GameController.BattleStarted)

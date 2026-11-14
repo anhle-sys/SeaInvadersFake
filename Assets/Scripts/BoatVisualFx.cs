@@ -141,10 +141,6 @@ public class BoatVisualFx : MonoBehaviour
         StartBobbing();
     }
 
-    /// <summary>
-    /// Phản ứng trúng đòn. strength01: 1 = cú đánh chuẩn; hitPoint: nơi đạn/vụ nổ chạm;
-    /// hitDirection: hướng lực tác động (vd hướng bay A->B của đạn) - thân tàu giật đúng theo hướng này.
-    /// </summary>
     public void PlayHit(float strength01, Vector3 hitPoint, Vector3 hitDirection)
     {
         if (visual == null)

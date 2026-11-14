@@ -1,9 +1,5 @@
 using UnityEngine;
 
-/// <summary>
-/// Thông số "cảm giác lái" của tàu, dùng chung cho nhiều prefab.
-/// Tốc độ tối đa và tốc độ quay tối đa KHÔNG nằm ở đây: chúng lấy từ BoatData theo cấp tàu.
-/// </summary>
 [CreateAssetMenu(menuName = "Boats/Handling Profile", fileName = "BoatHandlingProfile")]
 public class BoatHandlingProfile : ScriptableObject
 {

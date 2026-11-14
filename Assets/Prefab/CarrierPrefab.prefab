@@ -1230,7 +1230,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BoatHealth
   targetController: {fileID: 4461143357090829704}
   meshStateController: {fileID: 0}
-  destructionBridge: {fileID: 3046494744946651480}
+  fillController: {fileID: 5255097484006993351}
   barOffset: {x: 0, y: 2, z: 0}
 --- !u!114 &4753345801392412977
 MonoBehaviour:
@@ -1611,9 +1611,6 @@ GameObject:
   - component: {fileID: 5483757490312855171}
   - component: {fileID: 3451410829464015512}
   - component: {fileID: 5255097484006993351}
-  - component: {fileID: 3974189962045755712}
-  - component: {fileID: 6468645602241764043}
-  - component: {fileID: 3046494744946651480}
   m_Layer: 6
   m_Name: Mesh
   m_TagString: Untagged
@@ -1643,7 +1640,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6695567515309879850}
-  m_Mesh: {fileID: 4300000, guid: c753004960140ed45bfa5375cb981a28, type: 2}
+  m_Mesh: {fileID: 4300000, guid: 7422048234cbf9242b63d61afacbbdb9, type: 2}
 --- !u!23 &3451410829464015512
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1727,55 +1724,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9ac16ff1c8b6ceb4bb2fc5db99d72b91, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RuntimeMeshFillController
-  sourceMesh: {fileID: 4300000, guid: 7fbaa9ec55818fe41b05a3f7f27f8f42, type: 2}
+  sourceMesh: {fileID: 4300000, guid: cb4ad38b93cd06e4eb595bb03255d976, type: 2}
   weldTolerance: 0.0001
---- !u!114 &3974189962045755712
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6695567515309879850}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5b2ce69ff2836354cb4d9978f591f7ef, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::DestructionController
-  settings: {fileID: 11400000, guid: dfbe1dd74862f8641b811b8f37d3a93a, type: 2}
-  meshFilter: {fileID: 5483757490312855171}
-  meshCollider: {fileID: 0}
-  projectionOrientation: {fileID: 0}
---- !u!114 &6468645602241764043
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6695567515309879850}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 28d65c268c927364294841d24cf26f98, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::DamageReceiver
-  destructionController: {fileID: 3974189962045755712}
---- !u!114 &3046494744946651480
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6695567515309879850}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 73caec89f5619394fa202400c47e0eea, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ProjectileDestructionBridge
-  damageReceiver: {fileID: 6468645602241764043}
-  destructionController: {fileID: 3974189962045755712}
-  rayBackOffset: 1.5
-  rayMaxDistance: 25
-  minInterval: 0.2
-  maxTriangles: 80000
+  minHitRadius: 0.5
+  maxHitRadius: 3
+  damageRatioForMaxRadius: 0.25
+  snapDistance: 1.5
+  minNormalAlignment: 0.5
+  maxDepthBehindImpact: 0.3
+  explosionRadiusMultiplier: 1.5
+  minDamageRegionArea: 0.001
+  upwardRegionsAsDecals: 1
+  decalMaterial: {fileID: 2100000, guid: 92188ce59d5aecc4497f4ff3a1cde234, type: 2}
+  decalMinUp: 0.7
+  decalOffset: 0.003
+  drawHitGizmos: 0
 --- !u!1 &6924176578658630150
 GameObject:
   m_ObjectHideFlags: 0
