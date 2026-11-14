@@ -63,15 +63,32 @@ public class HolePatternConfig : ScriptableObject
         public float rotationStep = 47f;
     }
 
+    // Lỗ cắt tay trong Mesh Editor: lưu vị trí trên mesh (local) để bake lại với mask mới.
+    [Serializable]
+    public class ManualHole
+    {
+        public Vector3 localPoint;
+        public Vector3 localNormal = Vector3.up;
+        public float maskSize = 0.45f;
+        public float projectionDepth = 0.12f;
+        public float rotation;
+        public bool includeInDisplay = true;
+    }
+
     [Header("Nguồn")]
     [Tooltip("Mesh gốc CHƯA cắt.")]
     public Mesh sourceMesh;
 
-    [Tooltip("Prefab tàu: dùng transform của object thân tàu để đổi kích thước lỗ (world) sang local.")]
+    [Tooltip("Prefab tàu: dùng transform của object thân tàu để đổi kích thước lỗ (world) sang local. " +
+             "Để trống nếu không phải prefab (dùng Fallback Hull Scale).")]
     public GameObject prefab;
 
-    [Tooltip("Đường dẫn tới object thân tàu trong prefab (vd. 'Mesh'). Để trống: object có RuntimeMeshFillController.")]
+    [Tooltip("Đường dẫn tới object thân tàu trong prefab (vd. 'model/Mesh' hoặc chỉ tên 'Mesh'). " +
+             "Để trống: object có RuntimeMeshFillController.")]
     public string hullPath = "";
+
+    [Tooltip("Scale (world) của object thân tàu, dùng khi không có Prefab.")]
+    public Vector3 fallbackHullScale = Vector3.one;
 
     [Header("Mask")]
     public Texture2D mask;
@@ -83,7 +100,10 @@ public class HolePatternConfig : ScriptableObject
     [Tooltip("Số lần thử lại (đổi góc xoay / dịch nhẹ) khi 1 lỗ không tạo được vùng lấp kín.")]
     [Range(0, 10)] public int maxRetries = 5;
 
-    [Header("Nhóm lỗ")]
+    [Header("Lỗ cắt tay (ghi tự động từ Mesh Editor)")]
+    public List<ManualHole> manualHoles = new List<ManualHole>();
+
+    [Header("Nhóm lỗ theo bố cục")]
     public List<HoleGroup> groups = new List<HoleGroup>();
 
     [Header("Đầu ra")]

@@ -28,6 +28,15 @@ public class MeshEditorWindow : EditorWindow
 
     private MeshFilter meshFilter;
 
+    // ---- Hole Pattern --------------------------------------------------------
+    // Mỗi nhát cắt được ghi vào Hole Pattern (tạo tự động ở nhát đầu tiên), để sau này
+    // đổi mask chỉ cần thay mask trong Hole Pattern rồi Bake lại đúng các vị trí đã cắt.
+    private HolePatternConfig holeConfig;
+    private bool recordToPattern = true;
+
+    // Mesh gốc (asset, chưa cắt) của target, dùng làm Source Mesh khi tạo Hole Pattern mới.
+    private Mesh originalMesh;
+
     private const string SaveFolder =
         "Assets/MeshEditor/Generated";
 
@@ -114,20 +123,18 @@ public class MeshEditorWindow : EditorWindow
 
         EditorGUILayout.Space();
 
-        target = (GameObject)EditorGUILayout.ObjectField(
+        GameObject newTarget = (GameObject)EditorGUILayout.ObjectField(
             "Target",
             target,
             typeof(GameObject),
             true
         );
 
-        if (GUILayout.Button("Use Selected Object"))
-        {
-            target = Selection.activeGameObject;
+        if (newTarget != target)
+            SetTarget(newTarget);
 
-            ResetFillData();
-            raycastDirty = true;
-        }
+        if (GUILayout.Button("Use Selected Object"))
+            SetTarget(Selection.activeGameObject);
 
         EditorGUILayout.Space();
 
@@ -226,6 +233,10 @@ public class MeshEditorWindow : EditorWindow
 
         EditorGUILayout.Space();
 
+        DrawHolePattern();
+
+        EditorGUILayout.Space();
+
         DrawFillRegions();
 
         if (GUILayout.Button("Refresh Scene View"))
@@ -234,6 +245,169 @@ public class MeshEditorWindow : EditorWindow
             InvalidateRaycastCache();
             SceneView.RepaintAll();
         }
+    }
+
+    private void SetTarget(GameObject newTarget)
+    {
+        target = newTarget;
+
+        ResetFillData();
+        raycastDirty = true;
+        originalMesh = null;
+        holeConfig = null;
+
+        MeshFilter filter = target != null ? target.GetComponent<MeshFilter>() : null;
+        Mesh mesh = filter != null ? filter.sharedMesh : null;
+
+        if (target != null)
+            holeConfig = HolePatternBaker.FindConfigFor(target, mesh);
+
+        if (holeConfig != null)
+            originalMesh = holeConfig.sourceMesh;
+        else if (mesh != null && AssetDatabase.Contains(mesh))
+            originalMesh = mesh;
+    }
+
+    private void DrawHolePattern()
+    {
+        EditorGUILayout.LabelField("Hole Pattern", EditorStyles.boldLabel);
+
+        holeConfig = (HolePatternConfig)EditorGUILayout.ObjectField(
+            "Pattern", holeConfig, typeof(HolePatternConfig), false);
+
+        recordToPattern = EditorGUILayout.Toggle(
+            new GUIContent("Record Cuts",
+                "Ghi mỗi nhát cắt vào Hole Pattern. Chưa có Pattern thì tự tạo ở nhát cắt đầu tiên."),
+            recordToPattern);
+
+        if (holeConfig == null)
+        {
+            EditorGUILayout.HelpBox(
+                recordToPattern
+                    ? "Hole Pattern sẽ được tạo tự động ở nhát cắt đầu tiên (Assets/MeshEditor/HolePatterns)."
+                    : "Đang tắt ghi: các nhát cắt sẽ không được lưu để bake lại.",
+                MessageType.Info);
+            return;
+        }
+
+        int manual = holeConfig.manualHoles != null ? holeConfig.manualHoles.Count : 0;
+        EditorGUILayout.LabelField("Lỗ cắt tay đã ghi", manual.ToString());
+
+        EditorGUILayout.BeginHorizontal();
+
+        using (new EditorGUI.DisabledScope(manual == 0))
+        {
+            if (GUILayout.Button("Remove Last Hole"))
+            {
+                Undo.RecordObject(holeConfig, "Remove Last Hole");
+                holeConfig.manualHoles.RemoveAt(manual - 1);
+                EditorUtility.SetDirty(holeConfig);
+            }
+        }
+
+        if (GUILayout.Button("Select Pattern"))
+        {
+            Selection.activeObject = holeConfig;
+            EditorGUIUtility.PingObject(holeConfig);
+        }
+
+        EditorGUILayout.EndHorizontal();
+
+        string problem = HolePatternBaker.Validate(holeConfig);
+        if (problem != null)
+            EditorGUILayout.HelpBox(problem, MessageType.Warning);
+
+        using (new EditorGUI.DisabledScope(problem != null))
+        {
+            if (GUILayout.Button(
+                    new GUIContent("Bake Hole Pattern",
+                        "Cắt lại từ mesh gốc với mask trong Hole Pattern, lưu mesh và gán vào prefab / object."),
+                    GUILayout.Height(28)))
+            {
+                BakePattern();
+            }
+        }
+    }
+
+    private void BakePattern()
+    {
+        if (!HolePatternBaker.Bake(holeConfig))
+            return;
+
+        ResetFillData();
+
+        if (meshFilter == null && target != null)
+            meshFilter = target.GetComponent<MeshFilter>();
+
+        if (meshFilter != null)
+        {
+            bool isInstance = PrefabUtility.IsPartOfPrefabInstance(meshFilter) && holeConfig.prefab != null &&
+                              holeConfig.assignToPrefab;
+
+            if (isInstance)
+            {
+                // Bỏ mesh tạm của cửa sổ trên instance để nhận mesh đã bake từ prefab.
+                var filterSO = new SerializedObject(meshFilter);
+                SerializedProperty meshProp = filterSO.FindProperty("m_Mesh");
+                if (meshProp.prefabOverride)
+                    PrefabUtility.RevertPropertyOverride(meshProp, InteractionMode.UserAction);
+
+                var fill = meshFilter.GetComponent<RuntimeMeshFillController>();
+                if (fill != null)
+                {
+                    var fillSO = new SerializedObject(fill);
+                    SerializedProperty sourceProp = fillSO.FindProperty("sourceMesh");
+                    if (sourceProp.prefabOverride)
+                        PrefabUtility.RevertPropertyOverride(sourceProp, InteractionMode.UserAction);
+                }
+            }
+            else
+            {
+                Undo.RecordObject(meshFilter, "Bake Hole Pattern");
+                Mesh source = holeConfig.sourceOutput != null ? holeConfig.sourceOutput : holeConfig.displayOutput;
+                HolePatternBaker.AssignToHull(meshFilter.transform, holeConfig.displayOutput, source);
+                EditorUtility.SetDirty(meshFilter);
+            }
+        }
+
+        InvalidateRaycastCache();
+        SceneView.RepaintAll();
+        Repaint();
+    }
+
+    // Ghi nhát cắt vừa thực hiện vào Hole Pattern (tạo Pattern nếu chưa có).
+    private void RecordCut(Vector3 worldPoint, Vector3 worldNormal)
+    {
+        if (!recordToPattern || meshFilter == null)
+            return;
+
+        if (holeConfig == null)
+        {
+            if (originalMesh == null)
+            {
+                Debug.LogWarning(
+                    "Không ghi được vào Hole Pattern: không xác định được mesh gốc (asset) của target. " +
+                    "Chọn lại target khi mesh còn chưa bị cắt.");
+                return;
+            }
+
+            holeConfig = HolePatternBaker.CreateConfigFor(
+                target, originalMesh, explosiveMask, alphaThreshold, maxSubdivisionDepth);
+        }
+
+        Transform t = meshFilter.transform;
+
+        Undo.RecordObject(holeConfig, "Record Hole");
+        holeConfig.manualHoles.Add(new HolePatternConfig.ManualHole
+        {
+            localPoint = t.InverseTransformPoint(worldPoint),
+            localNormal = t.localToWorldMatrix.transpose.MultiplyVector(worldNormal).normalized,
+            maskSize = maskSize,
+            projectionDepth = projectionDepth,
+            rotation = maskRotation,
+            includeInDisplay = true
+        });
+        EditorUtility.SetDirty(holeConfig);
     }
 
     private void FillSurfaceHoles()
@@ -865,6 +1039,8 @@ public class MeshEditorWindow : EditorWindow
 
             return;
         }
+
+        RecordCut(hitPoint, hitNormal);
 
         Undo.RecordObject(
             meshFilter,

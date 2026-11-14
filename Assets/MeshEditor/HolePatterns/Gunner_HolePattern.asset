@@ -15,10 +15,12 @@ MonoBehaviour:
   sourceMesh: {fileID: 7733420072633738129, guid: 1c713e58fd782431cafe3a0f209c359c, type: 3}
   prefab: {fileID: 2368469649159627480, guid: 1ac4a242f9e8ec24d8bacd2c3d764c69, type: 3}
   hullPath: fishing boat
+  fallbackHullScale: {x: 1, y: 1, z: 1}
   mask: {fileID: 2800000, guid: 2a81d4c45242ae84a8e3a37cf2c93e46, type: 3}
   alphaThreshold: 0.5
   edgeDetail: 6
   maxRetries: 5
+  manualHoles: []
   groups:
   - name: Hull sides
     enabled: 1
@@ -80,7 +82,7 @@ MonoBehaviour:
   displayOutput: {fileID: 4300000, guid: 542785890a25a054fbf6c04ff777c9c9, type: 2}
   sourceOutput: {fileID: 0}
   assignToPrefab: 1
-  lastBakeReport: "Bake xong trong 0.5s. Display: 11834 \u0111\u1EC9nh. Source: 11834
+  lastBakeReport: "Bake xong trong 0.3s. Display: 11834 \u0111\u1EC9nh. Source: 11834
     \u0111\u1EC9nh. L\u1ED7 th\u1EADt (v\xF9ng l\u1EDBn): 40.\n\u2022 Hull sides:
     c\u1EAFt 12 l\u1ED7.\r\n\u2022 Floor: c\u1EAFt 5 l\u1ED7.\r\n\u2022 Bow & stern
     deck: c\u1EAFt 2 l\u1ED7.\r\n\u0110\xE3 g\xE1n v\xE0o prefab: MeshFilter = fishing_boat_MaskHoles,
