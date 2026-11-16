@@ -32,6 +32,10 @@ public class RuntimeMeshFillController : MonoBehaviour
              "(vd. mạn bên kia, đáy tàu). Nên lớn hơn độ dày vỏ để lỗ xuyên được cả 2 lớp vỏ.")]
     [SerializeField] private float maxDepthBehindImpact = 0.3f;
 
+    [Tooltip("Lùi điểm đầu tia đạn khoảng này (m) trước vị trí đạn lúc chạm collider: trong 1 bước physics " +
+             "đạn có thể đã lọt qua vỏ. Thực tế dùng max(giá trị này, bán kính lỗ).")]
+    [SerializeField] private float rayBacktrack = 0.5f;
+
     [Tooltip("Hệ số bán kính cho vụ nổ / đâm (Banger) so với đạn thường.")]
     [SerializeField] private float explosionRadiusMultiplier = 1.5f;
 
@@ -70,6 +74,10 @@ public class RuntimeMeshFillController : MonoBehaviour
         public Vector3 normal;
         public Vector3 center;
         public float area;
+
+        // AABB (local) của mảnh lấp, nới nhẹ để mảnh phẳng không có bề dày 0:
+        // dùng loại nhanh khi bắn tia / đo bán kính trước khi xét từng tam giác.
+        public Bounds bounds;
     }
 
     private sealed class SharedRegions
@@ -243,6 +251,10 @@ public class RuntimeMeshFillController : MonoBehaviour
             center = bounds.center,
             area = areaVector.magnitude * 0.5f
         };
+
+        Bounds padded = bounds;
+        padded.Expand(Mathf.Max(bounds.size.magnitude * 0.01f, 1e-5f));
+        r.bounds = padded;
 
         if (sourceUV != null)
         {
@@ -454,12 +466,6 @@ public class RuntimeMeshFillController : MonoBehaviour
         return runtimeDecalMaterial;
     }
 
-    // ---- UV của mảnh lấp ------------------------------------------------------------
-
-    // Mảnh lấp mượn UV của các đỉnh viền lỗ. Khi viền đi qua nhiều đảo UV khác nhau
-    // (vd. sàn tàu Carrier: UV nhảy từ ~2 lên ~660 giữa 2 tam giác kề nhau), nội suy
-    // trên mảnh lấp kéo giãn texture thành vệt. Nếu UV không khớp một ánh xạ tuyến
-    // tính trên mặt phẳng mảnh lấp thì cả mảnh dùng chung UV trung vị (màu nền).
     private const float UVFitTolerance = 0.01f;
 
     private static void FlattenInconsistentUVs(List<Vector3> positions, List<int> triangles, List<Vector4> uvs)
@@ -626,14 +632,139 @@ public class RuntimeMeshFillController : MonoBehaviour
 
         bool hasDirection = hitDirection.sqrMagnitude > 0.000001f;
         Vector3 impact = hasDirection ? GetImpactPoint(sourcePoint, hitDirection) : sourcePoint;
+        int hitRegion = -1;
 
-        // Đạn rơi từ trên (máy bay) chạm collider khi còn cách sàn khá xa:
-        // lần theo đường bay tới vùng đầu tiên nó đi qua để lấy điểm trúng.
-        if (hasDirection &&
-            TryFindRayImpact(sourcePoint, hitDirection.normalized, radius, out Vector3 rayImpact))
-            impact = rayImpact;
+        if (hasDirection)
+        {
+            Vector3 dir = hitDirection.normalized;
 
-        return OpenRegionsInRadius(impact, radius, hasDirection ? hitDirection : Vector3.zero);
+            // 1) Bắn tia thật vào các tam giác của mảnh lấp: điểm trúng nằm đúng trên bề mặt.
+            // 2) Tia trượt hết (trúng phần vỏ không có vùng, hoặc chỉ sượt hộp collider):
+            //    lấy điểm trên đường bay gần vùng đầu tiên nó đi qua (cách cũ).
+            if (TryRaycastRegions(sourcePoint, dir, Mathf.Max(rayBacktrack, radius),
+                    out Vector3 surfacePoint, out hitRegion))
+                impact = surfacePoint;
+            else if (TryFindRayImpact(sourcePoint, dir, radius, out Vector3 rayImpact))
+                impact = rayImpact;
+        }
+
+        return OpenRegions(impact, radius, hasDirection ? hitDirection : Vector3.zero, hitRegion);
+    }
+
+    // Tia đạn (world) giao với tam giác của các vùng còn nguyên. Làm trong không gian
+    // local của mesh: chỉ đổi tia 1 lần thay vì nhân ma trận cho từng đỉnh. Hướng tia
+    // local = toLocal * dir (không chuẩn hóa) nên tham số t vẫn là khoảng cách world.
+    private bool TryRaycastRegions(Vector3 origin, Vector3 dir, float backtrack,
+        out Vector3 hitPoint, out int hitRegion)
+    {
+        hitPoint = origin;
+        hitRegion = -1;
+
+        Matrix4x4 toLocal = transform.worldToLocalMatrix;
+        Matrix4x4 normalMatrix = toLocal.transpose;
+        Vector3 worldStart = origin - dir * backtrack;
+        Vector3 localStart = toLocal.MultiplyPoint3x4(worldStart);
+        Vector3 localDir = toLocal.MultiplyVector(dir);
+
+        float bestT = float.MaxValue;
+        List<RegionData> regions = shared.regions;
+
+        for (int i = 0; i < regions.Count; i++)
+        {
+            if (!damageable[i] || !intact[i])
+                continue;
+
+            RegionData r = regions[i];
+
+            // Loại nhanh: tia không đi qua AABB của vùng (hoặc đi qua xa hơn điểm trúng đã có).
+            if (!RayHitsBounds(localStart, localDir, r.bounds, bestT))
+                continue;
+
+            if (!FacesHit(r, dir, normalMatrix))
+                continue;
+
+            Vector3[] p = r.positions;
+            int[] tris = r.triangles;
+
+            for (int t = 0; t + 2 < tris.Length; t += 3)
+            {
+                if (RayTriangle(localStart, localDir, p[tris[t]], p[tris[t + 1]], p[tris[t + 2]], out float dist) &&
+                    dist < bestT)
+                {
+                    bestT = dist;
+                    hitRegion = i;
+                }
+            }
+        }
+
+        if (hitRegion < 0)
+            return false;
+
+        hitPoint = worldStart + dir * bestT;
+        return true;
+    }
+
+    // Slab test: tia o + d*t (0 <= t <= maxT) có đi qua hộp không.
+    private static bool RayHitsBounds(Vector3 o, Vector3 d, Bounds b, float maxT)
+    {
+        Vector3 min = b.min;
+        Vector3 max = b.max;
+        float tMin = 0f;
+        float tMax = maxT;
+
+        for (int a = 0; a < 3; a++)
+        {
+            if (Mathf.Abs(d[a]) < 1e-12f)
+            {
+                if (o[a] < min[a] || o[a] > max[a])
+                    return false;
+                continue;
+            }
+
+            float inv = 1f / d[a];
+            float t1 = (min[a] - o[a]) * inv;
+            float t2 = (max[a] - o[a]) * inv;
+            if (t1 > t2)
+            {
+                float tmp = t1;
+                t1 = t2;
+                t2 = tmp;
+            }
+
+            tMin = Mathf.Max(tMin, t1);
+            tMax = Mathf.Min(tMax, t2);
+            if (tMin > tMax)
+                return false;
+        }
+
+        return true;
+    }
+
+    // Möller–Trumbore, 2 mặt (đạn có thể đi vào từ mặt trong của vỏ).
+    private static bool RayTriangle(Vector3 o, Vector3 d, Vector3 a, Vector3 b, Vector3 c, out float t)
+    {
+        t = 0f;
+        Vector3 e1 = b - a;
+        Vector3 e2 = c - a;
+        Vector3 p = Vector3.Cross(d, e2);
+        float det = Vector3.Dot(e1, p);
+
+        if (det > -1e-20f && det < 1e-20f)
+            return false;
+
+        float inv = 1f / det;
+        Vector3 s = o - a;
+        float u = Vector3.Dot(s, p) * inv;
+        if (u < 0f || u > 1f)
+            return false;
+
+        Vector3 q = Vector3.Cross(s, e1);
+        float v = Vector3.Dot(d, q) * inv;
+        if (v < 0f || u + v > 1f)
+            return false;
+
+        t = Vector3.Dot(e2, q) * inv;
+        return t >= 0f;
     }
 
     // Nguồn nằm ngoài tàu (vd. Banger nổ cách thân tàu vài mét): lấy điểm tia từ nguồn
@@ -714,6 +845,12 @@ public class RuntimeMeshFillController : MonoBehaviour
 
     public int OpenRegionsInRadius(Vector3 worldPoint, float worldRadius, Vector3 hitDirection)
     {
+        return OpenRegions(worldPoint, worldRadius, hitDirection, -1);
+    }
+
+    // hitRegion: vùng mà tia đạn trúng trực tiếp (-1 = không có) - luôn được mở.
+    private int OpenRegions(Vector3 worldPoint, float worldRadius, Vector3 hitDirection, int hitRegion)
+    {
         if (shared == null || intact == null)
             return 0;
 
@@ -727,6 +864,13 @@ public class RuntimeMeshFillController : MonoBehaviour
 
         int opened = 0;
         float radiusSqr = worldRadius * worldRadius;
+        float snapSqr = snapDistance > 0f ? snapDistance * snapDistance : 0f;
+
+        if (hitRegion >= 0 && intact[hitRegion])
+        {
+            intact[hitRegion] = false;
+            opened++;
+        }
 
         int nearest = -1;
         float nearestSqr = float.MaxValue;
@@ -738,6 +882,13 @@ public class RuntimeMeshFillController : MonoBehaviour
                 continue;
 
             RegionData r = regions[i];
+
+            // Loại nhanh bằng AABB world (cận dưới của khoảng cách): xa hơn cả bán kính lẫn
+            // khoảng snap / vùng gần nhất đã có thì không cần xét từng tam giác.
+            float lowerBound = WorldBounds(r.bounds, toWorld).SqrDistance(worldPoint);
+            float limit = opened > 0 ? radiusSqr : Mathf.Max(radiusSqr, Mathf.Min(snapSqr, nearestSqr));
+            if (lowerBound > limit)
+                continue;
 
             if (filter)
             {
@@ -779,19 +930,74 @@ public class RuntimeMeshFillController : MonoBehaviour
         return opened;
     }
 
-    // Khoảng cách (bình phương, world) từ điểm tới vertex gần nhất của vùng.
+    // AABB world bao AABB local qua ma trận (kể cả xoay / scale không đều).
+    private static Bounds WorldBounds(Bounds local, Matrix4x4 m)
+    {
+        Vector3 e = local.extents;
+        Vector3 worldExtents = new Vector3(
+            Mathf.Abs(m.m00) * e.x + Mathf.Abs(m.m01) * e.y + Mathf.Abs(m.m02) * e.z,
+            Mathf.Abs(m.m10) * e.x + Mathf.Abs(m.m11) * e.y + Mathf.Abs(m.m12) * e.z,
+            Mathf.Abs(m.m20) * e.x + Mathf.Abs(m.m21) * e.y + Mathf.Abs(m.m22) * e.z);
+        return new Bounds(m.MultiplyPoint3x4(local.center), worldExtents * 2f);
+    }
+
+    // Khoảng cách (bình phương, world) từ điểm tới BỀ MẶT của vùng (điểm gần nhất trên
+    // các tam giác), không chỉ tới đỉnh: điểm trúng giữa 1 mảnh lấp lớn có khoảng cách 0.
+    // Tính trong world vì scale không đều làm méo khoảng cách local.
     private static float ClosestDistanceSqr(RegionData r, Vector3 worldPoint, Matrix4x4 toWorld)
     {
-        float best = (toWorld.MultiplyPoint3x4(r.center) - worldPoint).sqrMagnitude;
+        float best = float.MaxValue;
+        Vector3[] p = r.positions;
+        int[] tris = r.triangles;
 
-        foreach (Vector3 p in r.positions)
+        for (int t = 0; t + 2 < tris.Length; t += 3)
         {
-            float d = (toWorld.MultiplyPoint3x4(p) - worldPoint).sqrMagnitude;
+            Vector3 a = toWorld.MultiplyPoint3x4(p[tris[t]]);
+            Vector3 b = toWorld.MultiplyPoint3x4(p[tris[t + 1]]);
+            Vector3 c = toWorld.MultiplyPoint3x4(p[tris[t + 2]]);
+
+            float d = (ClosestPointOnTriangle(worldPoint, a, b, c) - worldPoint).sqrMagnitude;
             if (d < best)
+            {
                 best = d;
+                if (best <= 0f)
+                    break;
+            }
         }
 
         return best;
+    }
+
+    // Ericson, Real-Time Collision Detection 5.1.5.
+    private static Vector3 ClosestPointOnTriangle(Vector3 p, Vector3 a, Vector3 b, Vector3 c)
+    {
+        Vector3 ab = b - a, ac = c - a, ap = p - a;
+        float d1 = Vector3.Dot(ab, ap), d2 = Vector3.Dot(ac, ap);
+        if (d1 <= 0f && d2 <= 0f) return a;
+
+        Vector3 bp = p - b;
+        float d3 = Vector3.Dot(ab, bp), d4 = Vector3.Dot(ac, bp);
+        if (d3 >= 0f && d4 <= d3) return b;
+
+        float vc = d1 * d4 - d3 * d2;
+        if (vc <= 0f && d1 >= 0f && d3 <= 0f)
+            return a + ab * (d1 / (d1 - d3));
+
+        Vector3 cp = p - c;
+        float d5 = Vector3.Dot(ab, cp), d6 = Vector3.Dot(ac, cp);
+        if (d6 >= 0f && d5 <= d6) return c;
+
+        float vb = d5 * d2 - d1 * d6;
+        if (vb <= 0f && d2 >= 0f && d6 <= 0f)
+            return a + ac * (d2 / (d2 - d6));
+
+        float va = d3 * d6 - d5 * d4;
+        if (va <= 0f && (d4 - d3) >= 0f && (d5 - d6) >= 0f)
+            return b + (c - b) * ((d4 - d3) / ((d4 - d3) + (d5 - d6)));
+
+        float denom = 1f / (va + vb + vc);
+        float v = vb * denom, w = vc * denom;
+        return a + ab * v + ac * w;
     }
 
     private void OnDrawGizmosSelected()

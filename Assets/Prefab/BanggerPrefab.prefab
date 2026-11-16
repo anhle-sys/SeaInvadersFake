@@ -18,7 +18,6 @@ GameObject:
   - component: {fileID: 676587482349482368}
   - component: {fileID: 2150375150619940065}
   - component: {fileID: -541516793099653652}
-  - component: {fileID: 5040114055712631041}
   m_Layer: 6
   m_Name: BanggerPrefab
   m_TagString: Untagged
@@ -156,7 +155,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BoatHealth
   targetController: {fileID: 793442910434517007}
-  meshStateController: {fileID: 5040114055712631041}
   barOffset: {x: 0, y: 2, z: 0}
 --- !u!114 &676587482349482368
 MonoBehaviour:
@@ -213,20 +211,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BoatClickable
   boatData: {fileID: 11400000, guid: 354ea28ae5b891a4b9dd17e75c6ec406, type: 2}
   channel: {fileID: 11400000, guid: 21af124081eb4f54e90b0fd282f3b909, type: 2}
---- !u!114 &5040114055712631041
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1700838897997021517}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 319bf07ce1de0444eb22463da25634a2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::MeshStateController
-  meshFilter: {fileID: 3885402218141270362}
-  meshStates: []
 --- !u!1001 &418511867378477332
 PrefabInstance:
   m_ObjectHideFlags: 0

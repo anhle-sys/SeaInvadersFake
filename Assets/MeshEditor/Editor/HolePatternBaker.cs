@@ -518,7 +518,7 @@ public static class HolePatternBaker
         }
         else
         {
-            // Ghi đè giữ nguyên GUID để prefab / MeshStateController vẫn trỏ đúng.
+            // Ghi đè giữ nguyên GUID để prefab vẫn trỏ đúng.
             string name = output.name;
             EditorUtility.CopySerialized(copy, output);
             output.name = name;

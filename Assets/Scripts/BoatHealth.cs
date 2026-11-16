@@ -6,7 +6,6 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
     private const float MinDamageRatio = 0.1f;
 
     [SerializeField] private BoatTargetController targetController;
-    [SerializeField] private MeshStateController meshStateController;
     [Tooltip("Mở các Fill Region (lộ lỗ thủng) quanh điểm trúng đạn, bán kính theo sát thương. Để trống sẽ tự tìm trong con.")]
     [SerializeField] private RuntimeMeshFillController fillController;
     [SerializeField] private Vector3 barOffset = new Vector3(0, 2f, 0);
@@ -103,8 +102,6 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
             hitDirection
         );
 
-        UpdateMeshByHealth();
-
         if (health > 0f && fillController != null)
             fillController.ApplyHit(
                 sourcePosition,
@@ -129,24 +126,6 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
         }
 
         Destroy(gameObject);
-    }
-
-    private void UpdateMeshByHealth()
-    {
-        if (meshStateController == null)
-            return;
-
-        float healthPercent = Mathf.Clamp01(
-            health / Mathf.Max(stats.MaxHealth, 0.01f)
-        );
-
-        int meshIndex = Mathf.Clamp(
-            Mathf.FloorToInt((1f - healthPercent) * 5f),
-            0,
-            4
-        );
-
-        meshStateController.SetState(meshIndex);
     }
 
     private void OnDestroy()

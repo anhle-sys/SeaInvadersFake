@@ -1229,7 +1229,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BoatHealth
   targetController: {fileID: 4461143357090829704}
-  meshStateController: {fileID: 0}
   fillController: {fileID: 5255097484006993351}
   barOffset: {x: 0, y: 2, z: 0}
 --- !u!114 &4753345801392412977
