@@ -17,10 +17,11 @@ MonoBehaviour:
   boatType: 1
   cost: 100
   killReward: 50
+  handlingProfile: {fileID: 11400000, guid: 15d64ca95e7943289f088b60d6b6ec33, type: 2}
   detectionRadius: 18
   levels:
   - prefab: {fileID: 1700838897997021517, guid: 95339c24782d0bd4e9904fa2846c3b89, type: 3}
-    damage: 10
+    damage: 100
     maxHealth: 100
     moveSpeed: 20
     rotateSpeed: 110
@@ -30,23 +31,25 @@ MonoBehaviour:
     maxLevel: 10
     baseCost: 100
     costGrowth: 1.15
+    stepsPerTier: 3
   - stat: 2
     bonusPerLevel: 2
     maxLevel: 10
     baseCost: 100
     costGrowth: 1.15
+    stepsPerTier: 3
   - stat: 3
     bonusPerLevel: 2
     maxLevel: 10
     baseCost: 100
     costGrowth: 1.15
-  explosionRadius: 3
-  explosionDamage: 80
+    stepsPerTier: 3
+  explosionRadius: 8
+  edgeDamageMultiplier: 0.5
   triggerDistance: 5
   damageLayers:
     serializedVersion: 2
     m_Bits: 64
   explosionPrefab: {fileID: 3009578875577290421, guid: b26c91824d6894b45bdbf7b6fbb13f69, type: 3}
   chargeSharpTurnSpeedFactor: 1
-  handlingProfile: {fileID: 11400000, guid: 15d64ca95e7943289f088b60d6b6ec33, type: 2}
   chargeLeadTarget: 1

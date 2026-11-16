@@ -20,7 +20,7 @@ public static BoatStats Create(BoatData data, bool usePlayerProgress, string ins
         {
             Level = level,
             MaxHealth = levelStats.maxHealth,
-            Damage = data is BangerData banger ? banger.explosionDamage : levelStats.damage,
+            Damage = levelStats.damage,
         };
 
         if (usePlayerProgress)

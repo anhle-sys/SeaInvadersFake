@@ -10,6 +10,7 @@ public class BangerCombat : BoatCombatBase, IBoatMovementModifier
     // Buffer dùng chung cho mọi vụ nổ: không cấp phát Collider[] / HashSet mới mỗi lần
     private static readonly Collider[] s_explosionHits = new Collider[128];
     private static readonly HashSet<IDamageable> s_damaged = new HashSet<IDamageable>();
+    private static readonly Dictionary<IDamageable, float> s_nearest = new Dictionary<IDamageable, float>();
     private static bool s_explosionBusy;
     private static readonly Dictionary<GameObject, bool> s_pooledFx = new Dictionary<GameObject, bool>();
 
@@ -165,22 +166,43 @@ private void DealExplosionDamage(IDamageable primaryTarget)
             damaged = new HashSet<IDamageable>();
         }
 
+        Dictionary<IDamageable, float> nearest = shared ? s_nearest : new Dictionary<IDamageable, float>();
+
         try
         {
-            float damage = stats != null ? stats.RollDamage() : data.explosionDamage;
+            float damage = stats != null ? stats.RollDamage() : data.GetLevel(0).damage;
+            Vector3 center = transform.position;
 
             if (primaryTarget != null && primaryTarget.Team != targetController.Team && damaged.Add(primaryTarget))
-                primaryTarget.TakeDamage(damage, transform.position);
+                primaryTarget.TakeDamage(damage, center);
 
+            // Gom theo tàu: một tàu nhiều collider chỉ tính 1 lần, lấy khoảng cách tới collider gần tâm nổ nhất
+            nearest.Clear();
             for (int i = 0; i < count; i++)
             {
                 IDamageable target = cols[i].GetComponentInParent<IDamageable>();
 
-                if (target == null || target.Team == targetController.Team)
+                if (target == null || target.Team == targetController.Team || damaged.Contains(target))
                     continue;
 
-                if (damaged.Add(target))
-                    target.TakeDamage(damage, transform.position);
+                // bounds.ClosestPoint an toàn với mọi loại collider (kể cả MeshCollider không convex)
+                Vector3 offset = cols[i].bounds.ClosestPoint(center) - center;
+                offset.y = 0f;
+                float dist = offset.magnitude;
+
+                if (!nearest.TryGetValue(target, out float best) || dist < best)
+                    nearest[target] = dist;
+            }
+
+            // Sát thương lan: giảm tuyến tính từ 100% ở tâm xuống edgeDamageMultiplier ở mép vùng nổ
+            float radius = Mathf.Max(data.explosionRadius, 0.01f);
+            foreach (KeyValuePair<IDamageable, float> pair in nearest)
+            {
+                if (!damaged.Add(pair.Key))
+                    continue;
+
+                float falloff = Mathf.Lerp(1f, data.edgeDamageMultiplier, Mathf.Clamp01(pair.Value / radius));
+                pair.Key.TakeDamage(damage * falloff, center);
             }
         }
         finally
@@ -189,8 +211,20 @@ private void DealExplosionDamage(IDamageable primaryTarget)
             {
                 System.Array.Clear(s_explosionHits, 0, count);
                 s_damaged.Clear();
+                s_nearest.Clear();
                 s_explosionBusy = false;
             }
         }
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        if (data == null)
+            return;
+
+        Gizmos.color = new Color(1f, 0.4f, 0f, 0.8f);
+        Gizmos.DrawWireSphere(transform.position, data.explosionRadius);
+        Gizmos.color = new Color(1f, 1f, 0f, 0.8f);
+        Gizmos.DrawWireSphere(transform.position, data.triggerDistance);
     }
 }

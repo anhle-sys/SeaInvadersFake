@@ -4,8 +4,10 @@ using UnityEngine;
 public class BangerData : BoatData
 {
     [Header("Banger")]
-    public float explosionRadius = 3f;
-    public float explosionDamage = 80f;
+    [Tooltip("Bán kính vùng nổ, tính từ tâm Banger tới mép collider của tàu địch. Nên lớn hơn triggerDistance để trúng nhiều tàu")]
+    public float explosionRadius = 8f;
+    [Tooltip("Tỉ lệ sát thương ở mép vùng nổ (1 = đều nhau, 0 = mép không mất máu). Mục tiêu chính luôn nhận 100%")]
+    [Range(0f, 1f)] public float edgeDamageMultiplier = 0.5f;
     public float triggerDistance = 1.5f;
     public LayerMask damageLayers;
     public GameObject explosionPrefab;

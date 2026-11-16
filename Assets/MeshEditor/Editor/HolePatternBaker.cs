@@ -62,6 +62,7 @@ public static class HolePatternBaker
         public int done;
         public int total;
         public StringBuilder report;
+        public List<HoleLayerSeed> seeds = new List<HoleLayerSeed>();
     }
 
     public static string Validate(HolePatternConfig c)
@@ -155,16 +156,19 @@ public static class HolePatternBaker
                 source = SaveMesh(config, state.current, ref config.sourceOutput, "_Source");
             }
 
+            config.bakedLayerSeeds = state.seeds;
+
             if (config.assignToPrefab && root != null)
             {
-                AssignToHull(state.hull, display, source);
+                AssignToHull(state.hull, display, source, config);
                 PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
                 state.report.AppendLine("Đã gán vào prefab: MeshFilter = " + display.name + ", Source Mesh = " + source.name + ".");
             }
 
             state.report.Insert(0,
                 $"Bake xong trong {stopwatch.Elapsed.TotalSeconds:F1}s. " +
-                $"Display: {display.vertexCount} đỉnh. Source: {source.vertexCount} đỉnh. Lỗ thật (vùng lớn): {state.bigRegions}.\n");
+                $"Display: {display.vertexCount} đỉnh. Source: {source.vertexCount} đỉnh. Lỗ thật (vùng lớn): {state.bigRegions}. " +
+                $"Lỗ 2 lớp: {state.seeds.Count}.\n");
 
             config.lastBakeReport = state.report.ToString().TrimEnd();
             EditorUtility.SetDirty(config);
@@ -223,6 +227,7 @@ public static class HolePatternBaker
                     maskSize = h.maskSize,
                     depth = h.projectionDepth,
                     rotation = h.rotation + attempt * 37f,
+                    bigScale = h.bigMaskScale,
                     valid = true
                 };
             });
@@ -270,6 +275,7 @@ public static class HolePatternBaker
                     maskSize = group.maskSize,
                     depth = group.projectionDepth,
                     rotation = point.index * group.rotationStep + (point.sideSign < 0f ? 23f : 0f) + attempt * 37f,
+                    bigScale = group.bigMaskScale,
                     valid = true
                 };
             });
@@ -292,6 +298,7 @@ public static class HolePatternBaker
         public float maskSize;
         public float depth;
         public float rotation;
+        public float bigScale;
         public bool valid;
     }
 
@@ -305,8 +312,11 @@ public static class HolePatternBaker
             if (!r.valid)
                 continue;
 
+            // Lỗ 2 lớp: thân tàu bị cắt theo lớp to, lõi bé (maskSize) được tách khi chạy game.
+            float bigScale = Mathf.Max(1f, r.bigScale);
+
             Mesh result = MeshGeometry.RemoveExplosiveMask(
-                s.current, s.hull, r.worldPoint, r.worldNormal, s.config.mask, r.maskSize,
+                s.current, s.hull, r.worldPoint, r.worldNormal, s.config.mask, r.maskSize * bigScale,
                 s.config.alphaThreshold, r.depth, 0.1f, s.config.edgeDetail, r.rotation % 360f);
 
             if (result == null)
@@ -320,6 +330,20 @@ public static class HolePatternBaker
 
                 s.current = result;
                 s.bigRegions = newBig;
+
+                if (bigScale > 1.001f)
+                {
+                    s.seeds.Add(new HoleLayerSeed
+                    {
+                        localPoint = s.hull.InverseTransformPoint(r.worldPoint),
+                        localNormal = s.hull.localToWorldMatrix.transpose.MultiplyVector(r.worldNormal).normalized,
+                        maskSize = r.maskSize,
+                        bigScale = bigScale,
+                        projectionDepth = r.depth,
+                        rotation = r.rotation % 360f
+                    });
+                }
+
                 return attempt;
             }
 
@@ -537,7 +561,7 @@ public static class HolePatternBaker
         return output;
     }
 
-    public static void AssignToHull(Transform hull, Mesh display, Mesh source)
+    public static void AssignToHull(Transform hull, Mesh display, Mesh source, HolePatternConfig config)
     {
         var filter = hull.GetComponent<MeshFilter>();
         if (filter != null)
@@ -550,6 +574,9 @@ public static class HolePatternBaker
         var so = new SerializedObject(fill);
         so.FindProperty("sourceMesh").objectReferenceValue = source;
         so.ApplyModifiedPropertiesWithoutUndo();
+
+        fill.SetHoleLayers(config.mask, config.alphaThreshold, config.edgeDetail, config.bakedLayerSeeds);
+        EditorUtility.SetDirty(fill);
     }
 
     private static Transform FindHull(GameObject root, string hullPath)

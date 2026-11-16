@@ -15,17 +15,20 @@ MonoBehaviour:
   sourceMesh: {fileID: 4300000, guid: c753004960140ed45bfa5375cb981a28, type: 2}
   prefab: {fileID: 5261690935475611637, guid: 23fe9718e2d1d6444a0e617822606951, type: 3}
   hullPath: Mesh
+  fallbackHullScale: {x: 1, y: 1, z: 1}
   mask: {fileID: 2800000, guid: 2a81d4c45242ae84a8e3a37cf2c93e46, type: 3}
   alphaThreshold: 0.5
   edgeDetail: 6
   maxRetries: 5
+  manualHoles: []
   groups:
   - name: Hull sides
     enabled: 1
     placement: 0
     includeInDisplay: 1
-    maskSize: 0.6
+    maskSize: 0.3
     projectionDepth: 0.15
+    bigMaskScale: 2
     alongAxis: 0
     alongFrom: -296
     alongTo: -10
@@ -42,8 +45,9 @@ MonoBehaviour:
     enabled: 1
     placement: 1
     includeInDisplay: 0
-    maskSize: 0.7
+    maskSize: 0.35
     projectionDepth: 0.006
+    bigMaskScale: 2
     alongAxis: 0
     alongFrom: -290
     alongTo: -15
@@ -61,9 +65,280 @@ MonoBehaviour:
   displayOutput: {fileID: 4300000, guid: 7422048234cbf9242b63d61afacbbdb9, type: 2}
   sourceOutput: {fileID: 4300000, guid: cb4ad38b93cd06e4eb595bb03255d976, type: 2}
   assignToPrefab: 1
-  lastBakeReport: "Bake xong trong 2.1s. Display: 35644 \u0111\u1EC9nh. Source: 41910
-    \u0111\u1EC9nh. L\u1ED7 th\u1EADt (v\xF9ng l\u1EDBn): 47.\n\u2022 Hull sides:
-    c\u1EAFt 22 l\u1ED7 (th\u1EED l\u1EA1i 4).\r\n\u2022 Flight deck: c\u1EAFt 23
-    l\u1ED7 (th\u1EED l\u1EA1i 1), b\u1ECF qua 4 \u0111i\u1EC3m kh\xF4ng tr\xFAng
-    b\u1EC1 m\u1EB7t ph\xF9 h\u1EE3p.\r\n\u0110\xE3 g\xE1n v\xE0o prefab: MeshFilter
-    = CarrierCombine_SideHoles, Source Mesh = CarrierCombine_Holes."
+  lastBakeReport: "Bake xong trong 1.8s. Display: 35644 \u0111\u1EC9nh. Source: 41910
+    \u0111\u1EC9nh. L\u1ED7 th\u1EADt (v\xF9ng l\u1EDBn): 47. L\u1ED7 2 l\u1EDBp:
+    45.\n\u2022 Hull sides: c\u1EAFt 22 l\u1ED7 (th\u1EED l\u1EA1i 4).\r\n\u2022
+    Flight deck: c\u1EAFt 23 l\u1ED7 (th\u1EED l\u1EA1i 1), b\u1ECF qua 4 \u0111i\u1EC3m
+    kh\xF4ng tr\xFAng b\u1EC1 m\u1EB7t ph\xF9 h\u1EE3p.\r\n\u0110\xE3 g\xE1n v\xE0o
+    prefab: MeshFilter = CarrierCombine_SideHoles, Source Mesh = CarrierCombine_Holes."
+  bakedLayerSeeds:
+  - localPoint: {x: -296.00006, y: 20, z: 10.574131}
+    localNormal: {x: -0.32559654, y: -0.36140975, z: 0.87371045}
+    maskSize: 0.3
+    bigScale: 2
+    projectionDepth: 0.15
+    rotation: 0
+  - localPoint: {x: -269.00006, y: 20, z: 18.140564}
+    localNormal: {x: -0.17100985, y: -0.29540884, z: 0.9399411}
+    maskSize: 0.3
+    bigScale: 2
+    projectionDepth: 0.15
+    rotation: 47
+  - localPoint: {x: -242.00008, y: 20, z: 20.400505}
+    localNormal: {x: 0.0028355203, y: 0.01045919, z: 0.9999413}
+    maskSize: 0.3
+    bigScale: 2
+    projectionDepth: 0.15
+    rotation: 94
+  - localPoint: {x: -212.84006, y: 20, z: 20.40001}
+    localNormal: {x: -2.700065e-15, y: 0, z: 1}
+    maskSize: 0.3
+    bigScale: 2
+    projectionDepth: 0.15
+    rotation: 178
+  - localPoint: {x: -188.00005, y: 20, z: 20.400047}
+    localNormal: {x: -2.700065e-15, y: 0, z: 1}
+    maskSize: 0.3
+    bigScale: 2
+    projectionDepth: 0.15
+    rotation: 188
+  - localPoint: {x: -161, y: 20, z: 20.39998}
+    localNormal: {x: -2.700065e-15, y: 0, z: 1}
+    maskSize: 0.3
+    bigScale: 2
+    projectionDepth: 0.15
+    rotation: 235
+  - localPoint: {x: -134, y: 20, z: 20.4}
+    localNormal: {x: -2.700065e-15, y: 0, z: 1}
+    maskSize: 0.3
+    bigScale: 2
+    projectionDepth: 0.15
+    rotation: 282
+  - localPoint: {x: -107.00001, y: 20, z: 20.400047}
+    localNormal: {x: -2.700065e-15, y: 0, z: 1}
+    maskSize: 0.3
+    bigScale: 2
+    projectionDepth: 0.15
+    rotation: 329
+  - localPoint: {x: -79.99999, y: 20, z: 20.400032}
+    localNormal: {x: -2.700065e-15, y: 0, z: 1}
+    maskSize: 0.3
+    bigScale: 2
+    projectionDepth: 0.15
+    rotation: 16
+  - localPoint: {x: -50.839993, y: 20, z: 20.385632}
+    localNormal: {x: 0.006293257, y: -0.008453279, z: 0.9999445}
+    maskSize: 0.3
+    bigScale: 2
+    projectionDepth: 0.15
+    rotation: 100
+  - localPoint: {x: -25.999977, y: 20, z: 19.76981}
+    localNormal: {x: 0.042767487, y: -0.07502446, z: 0.99626416}
+    maskSize: 0.3
+    bigScale: 2
+    projectionDepth: 0.15
+    rotation: 110
+  - localPoint: {x: -296.00006, y: 20, z: -10.574245}
+    localNormal: {x: -0.32774827, y: -0.36211354, z: -0.87261385}
+    maskSize: 0.3
+    bigScale: 2
+    projectionDepth: 0.15
+    rotation: 23
+  - localPoint: {x: -266.8401, y: 20, z: -18.51347}
+    localNormal: {x: -0.15862663, y: -0.26815763, z: -0.95022583}
+    maskSize: 0.3
+    bigScale: 2
+    projectionDepth: 0.15
+    rotation: 107
+  - localPoint: {x: -242.00008, y: 20, z: -20.402393}
+    localNormal: {x: 0.0028356742, y: 0.00096403074, z: -0.9999955}
+    maskSize: 0.3
+    bigScale: 2
+    projectionDepth: 0.15
+    rotation: 117
+  - localPoint: {x: -215.00006, y: 20, z: -20.400038}
+    localNormal: {x: 2.700065e-15, y: 0, z: -1}
+    maskSize: 0.3
+    bigScale: 2
+    projectionDepth: 0.15
+    rotation: 164
+  - localPoint: {x: -188.00005, y: 20, z: -20.400038}
+    localNormal: {x: 2.700065e-15, y: 0, z: -1}
+    maskSize: 0.3
+    bigScale: 2
+    projectionDepth: 0.15
+    rotation: 211
+  - localPoint: {x: -161.00002, y: 20, z: -20.400028}
+    localNormal: {x: 2.700065e-15, y: 0, z: -1}
+    maskSize: 0.3
+    bigScale: 2
+    projectionDepth: 0.15
+    rotation: 258
+  - localPoint: {x: -134.00003, y: 20, z: -20.400047}
+    localNormal: {x: 2.700065e-15, y: 0, z: -1}
+    maskSize: 0.3
+    bigScale: 2
+    projectionDepth: 0.15
+    rotation: 305
+  - localPoint: {x: -107.00001, y: 20, z: -20.400043}
+    localNormal: {x: 2.700065e-15, y: 0, z: -1}
+    maskSize: 0.3
+    bigScale: 2
+    projectionDepth: 0.15
+    rotation: 352
+  - localPoint: {x: -79.99998, y: 20, z: -20.400032}
+    localNormal: {x: 2.700065e-15, y: 0, z: -1}
+    maskSize: 0.3
+    bigScale: 2
+    projectionDepth: 0.15
+    rotation: 39
+  - localPoint: {x: -55.159985, y: 20, z: -20.399841}
+    localNormal: {x: 0.00023145956, y: -0.00071801606, z: -0.9999997}
+    maskSize: 0.3
+    bigScale: 2
+    projectionDepth: 0.15
+    rotation: 160
+  - localPoint: {x: -25.999985, y: 20, z: -19.770185}
+    localNormal: {x: 0.042761408, y: -0.07688384, z: -0.99612266}
+    maskSize: 0.3
+    bigScale: 2
+    projectionDepth: 0.15
+    rotation: 133
+  - localPoint: {x: -226.00008, y: 30.78003, z: -20.00002}
+    localNormal: {x: 0, y: 1, z: 0}
+    maskSize: 0.35
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 122
+  - localPoint: {x: -194.00006, y: 30.779968, z: -20.00001}
+    localNormal: {x: 0, y: 1, z: 0}
+    maskSize: 0.35
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 183
+  - localPoint: {x: -162.00003, y: 30.779968, z: -20}
+    localNormal: {x: 0, y: 1, z: 0}
+    maskSize: 0.35
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 244
+  - localPoint: {x: -130.00003, y: 30.779968, z: -20.00002}
+    localNormal: {x: 0, y: 1, z: 0}
+    maskSize: 0.35
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 305
+  - localPoint: {x: -98.000015, y: 30.779995, z: -20.000015}
+    localNormal: {x: 0, y: 1, z: 0}
+    maskSize: 0.35
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 6
+  - localPoint: {x: -65.999985, y: 30.779995, z: -20.000004}
+    localNormal: {x: 0, y: 1, z: 0}
+    maskSize: 0.35
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 67
+  - localPoint: {x: -33.999973, y: 30.779995, z: -20.000021}
+    localNormal: {x: 0, y: 1, z: 0}
+    maskSize: 0.35
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 128
+  - localPoint: {x: -239.44005, y: 30.779995, z: 0}
+    localNormal: {x: 0, y: 1, z: 0}
+    maskSize: 0.35
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 287
+  - localPoint: {x: -210.00005, y: 30.78003, z: -0.000009536743}
+    localNormal: {x: 0, y: 1, z: 0}
+    maskSize: 0.35
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 311
+  - localPoint: {x: -178.00005, y: 30.779968, z: -0.000009536743}
+    localNormal: {x: 0, y: 1, z: 0}
+    maskSize: 0.35
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 12
+  - localPoint: {x: -146, y: 30.779968, z: 0.000009536743}
+    localNormal: {x: 0, y: 1, z: 0}
+    maskSize: 0.35
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 73
+  - localPoint: {x: -114.00001, y: 30.779968, z: 0.000009536743}
+    localNormal: {x: 0, y: 1, z: 0}
+    maskSize: 0.35
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 134
+  - localPoint: {x: -81.999985, y: 30.779995, z: 0}
+    localNormal: {x: 0, y: 1, z: 0}
+    maskSize: 0.35
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 195
+  - localPoint: {x: -49.99999, y: 30.779995, z: 0}
+    localNormal: {x: 0, y: 1, z: 0}
+    maskSize: 0.35
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 256
+  - localPoint: {x: -17.999983, y: 30.78003, z: 0.0000035762787}
+    localNormal: {x: 0, y: 1, z: 0}
+    maskSize: 0.35
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 317
+  - localPoint: {x: -290.0001, y: 30.78003, z: 20}
+    localNormal: {x: 0, y: 1, z: 0}
+    maskSize: 0.35
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 18
+  - localPoint: {x: -258.00006, y: 30.779995, z: 20}
+    localNormal: {x: 0, y: 1, z: 0}
+    maskSize: 0.35
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 79
+  - localPoint: {x: -226.00008, y: 30.78003, z: 20.00002}
+    localNormal: {x: 0, y: 1, z: 0}
+    maskSize: 0.35
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 140
+  - localPoint: {x: -194.00006, y: 30.779968, z: 20.00002}
+    localNormal: {x: 0, y: 1, z: 0}
+    maskSize: 0.35
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 201
+  - localPoint: {x: -162.00003, y: 30.779968, z: 20.00001}
+    localNormal: {x: 0, y: 1, z: 0}
+    maskSize: 0.35
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 262
+  - localPoint: {x: -130.00002, y: 30.779968, z: 20.00001}
+    localNormal: {x: 0, y: 1, z: 0}
+    maskSize: 0.35
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 323
+  - localPoint: {x: -98.000015, y: 30.779995, z: 20.00001}
+    localNormal: {x: 0, y: 1, z: 0}
+    maskSize: 0.35
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 24
+  - localPoint: {x: -65.999985, y: 30.779995, z: 20.000023}
+    localNormal: {x: 0, y: 1, z: 0}
+    maskSize: 0.35
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 85

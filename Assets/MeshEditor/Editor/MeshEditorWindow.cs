@@ -10,6 +10,9 @@ public class MeshEditorWindow : EditorWindow
     private bool maskEnabled = true;
     private Texture2D explosiveMask;
     private float maskSize = 0.6f;
+
+    // Lỗ 2 lớp: cắt thân tàu bằng mask phóng to (Mask Size x hệ số), lõi bé = Mask Size.
+    private float bigMaskScale = 1f;
     private float alphaThreshold = 0.5f;
     private float projectionDepth = 0.15f;
     private float maskRotation = 0f;
@@ -149,6 +152,11 @@ public class MeshEditorWindow : EditorWindow
         }
 
         maskSize = EditorGUILayout.Slider("Mask Size (World Units)", maskSize, 0.01f, 5f);
+        bigMaskScale = EditorGUILayout.Slider(
+            new GUIContent("Big Layer Scale",
+                "Lỗ 2 lớp: thân tàu bị cắt bằng mask Mask Size x hệ số này (lớp to). Khi chạy game mảnh lấp " +
+                "được tách thành lõi bé (Mask Size) + vành; sát thương nhỏ chỉ mở lõi bé. 1 = lỗ 1 lớp."),
+            bigMaskScale, 1f, 4f);
         alphaThreshold = EditorGUILayout.Slider("Alpha Threshold", alphaThreshold, 0f, 1f);
         projectionDepth = EditorGUILayout.Slider("Projection Depth", projectionDepth, 0.01f, 2f);
         maskRotation = EditorGUILayout.Slider("Mask Rotation", maskRotation, 0f, 360f);
@@ -365,7 +373,10 @@ public class MeshEditorWindow : EditorWindow
             {
                 Undo.RecordObject(meshFilter, "Bake Hole Pattern");
                 Mesh source = holeConfig.sourceOutput != null ? holeConfig.sourceOutput : holeConfig.displayOutput;
-                HolePatternBaker.AssignToHull(meshFilter.transform, holeConfig.displayOutput, source);
+                var fillController = meshFilter.GetComponent<RuntimeMeshFillController>();
+                if (fillController != null)
+                    Undo.RecordObject(fillController, "Bake Hole Pattern");
+                HolePatternBaker.AssignToHull(meshFilter.transform, holeConfig.displayOutput, source, holeConfig);
                 EditorUtility.SetDirty(meshFilter);
             }
         }
@@ -405,7 +416,8 @@ public class MeshEditorWindow : EditorWindow
             maskSize = maskSize,
             projectionDepth = projectionDepth,
             rotation = maskRotation,
-            includeInDisplay = true
+            includeInDisplay = true,
+            bigMaskScale = bigMaskScale
         });
         EditorUtility.SetDirty(holeConfig);
     }
@@ -730,6 +742,12 @@ public class MeshEditorWindow : EditorWindow
 
         Handles.color = Color.cyan;
         Handles.DrawWireDisc(hitPoint, hitNormal, maskSize * 0.5f);
+        if (bigMaskScale > 1.001f)
+        {
+            Handles.color = new Color(1f, 0.55f, 0.1f, 1f);
+            Handles.DrawWireDisc(hitPoint, hitNormal, maskSize * bigMaskScale * 0.5f);
+            Handles.color = Color.cyan;
+        }
         Handles.DrawLine(hitPoint, hitPoint + hitNormal * 0.15f);
 
         if (explosiveMask != null)
@@ -771,7 +789,7 @@ public class MeshEditorWindow : EditorWindow
 
         pendingPoint = hitPoint;
         pendingNormal = hitNormal;
-        pendingRadius = maskSize * 0.5f;
+        pendingRadius = maskSize * Mathf.Max(1f, bigMaskScale) * 0.5f;
         cutState = CutState.Requested;
         sceneView.Repaint();
     }
@@ -1027,7 +1045,7 @@ public class MeshEditorWindow : EditorWindow
 
         Mesh result = MeshGeometry.RemoveExplosiveMask(
             source, meshFilter.transform, hitPoint, hitNormal, explosiveMask,
-            maskSize, alphaThreshold, projectionDepth, 0.1f,
+            maskSize * Mathf.Max(1f, bigMaskScale), alphaThreshold, projectionDepth, 0.1f,
             maxSubdivisionDepth, maskRotation
         );
 

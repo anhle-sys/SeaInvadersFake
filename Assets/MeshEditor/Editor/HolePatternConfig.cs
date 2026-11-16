@@ -30,6 +30,10 @@ public class HolePatternConfig : ScriptableObject
         [Tooltip("Độ sâu cắt (m). Lớn hơn độ dày vỏ để lỗ xuyên 2 lớp vỏ; rất nhỏ (vd. 0.006) để chỉ cắt lớp mặt trên cùng.")]
         public float projectionDepth = 0.12f;
 
+        [Tooltip("Lỗ 2 lớp: thân tàu bị cắt bằng mask phóng to Mask Size x hệ số này (lớp to), lõi bé có kích thước Mask Size. " +
+                 "1 = lỗ 1 lớp như cũ.")]
+        [Range(1f, 4f)] public float bigMaskScale = 1f;
+
         [Header("Bố cục (đơn vị local của mesh)")]
         [Tooltip("Trục dọc thân tàu (local) mà các lỗ trải theo.")]
         public Axis alongAxis = Axis.Z;
@@ -73,6 +77,9 @@ public class HolePatternConfig : ScriptableObject
         public float projectionDepth = 0.12f;
         public float rotation;
         public bool includeInDisplay = true;
+
+        [Tooltip("Lỗ 2 lớp: lớp to = Mask Size x hệ số này. 1 = lỗ 1 lớp.")]
+        public float bigMaskScale = 1f;
     }
 
     [Header("Nguồn")]
@@ -118,4 +125,7 @@ public class HolePatternConfig : ScriptableObject
     public bool assignToPrefab = true;
 
     [HideInInspector] public string lastBakeReport = "";
+
+    // Các lỗ 2 lớp đã cắt ở lần bake gần nhất (gán vào RuntimeMeshFillController).
+    [HideInInspector] public List<HoleLayerSeed> bakedLayerSeeds = new List<HoleLayerSeed>();
 }

@@ -404,12 +404,137 @@ MonoBehaviour:
   snapDistance: 0.8
   minNormalAlignment: 0.5
   maxDepthBehindImpact: 0.3
-  explosionRadiusMultiplier: 1.5
+  rayBacktrack: 0.5
+  explosionRadiusMultiplier: 2.5
+  explosionMaxDepth: 2
   minDamageRegionArea: 0.001
   upwardRegionsAsDecals: 1
   decalMaterial: {fileID: 2100000, guid: 92188ce59d5aecc4497f4ff3a1cde234, type: 2}
   decalMinUp: 0.7
   decalOffset: 0.003
+  layerMask: {fileID: 2800000, guid: 2a81d4c45242ae84a8e3a37cf2c93e46, type: 3}
+  layerAlphaThreshold: 0.5
+  layerEdgeDetail: 6
+  layerSeeds:
+  - localPoint: {x: 0.6984817, y: 0.45, z: -1.4000003}
+    localNormal: {x: 0.97006947, y: -0.21904783, z: -0.10480112}
+    maskSize: 0.225
+    bigScale: 2
+    projectionDepth: 0.12
+    rotation: 0
+  - localPoint: {x: 0.73919785, y: 0.36, z: -0.7800002}
+    localNormal: {x: 0.97004133, y: -0.24220724, z: -0.018855188}
+    maskSize: 0.225
+    bigScale: 2
+    projectionDepth: 0.12
+    rotation: 53
+  - localPoint: {x: 0.7739737, y: 0.45, z: -0.15999997}
+    localNormal: {x: 0.96890545, y: -0.24671343, z: -0.018832346}
+    maskSize: 0.225
+    bigScale: 2
+    projectionDepth: 0.12
+    rotation: 106
+  - localPoint: {x: 0.71725804, y: 0.36, z: 0.46000016}
+    localNormal: {x: 0.96508235, y: -0.2531433, z: 0.06733941}
+    maskSize: 0.225
+    bigScale: 2
+    projectionDepth: 0.12
+    rotation: 159
+  - localPoint: {x: 0.66017836, y: 0.45, z: 1.0800002}
+    localNormal: {x: 0.9398378, y: -0.29002464, z: 0.18052867}
+    maskSize: 0.225
+    bigScale: 2
+    projectionDepth: 0.12
+    rotation: 212
+  - localPoint: {x: 0.45378786, y: 0.36, z: 1.7000005}
+    localNormal: {x: 0.91228175, y: -0.258794, z: 0.3174392}
+    maskSize: 0.225
+    bigScale: 2
+    projectionDepth: 0.12
+    rotation: 265
+  - localPoint: {x: -0.69659203, y: 0.45, z: -1.4000001}
+    localNormal: {x: -0.9703194, y: -0.2190907, z: -0.102369405}
+    maskSize: 0.225
+    bigScale: 2
+    projectionDepth: 0.12
+    rotation: 23
+  - localPoint: {x: -0.7375298, y: 0.36, z: -0.78000027}
+    localNormal: {x: -0.97005045, y: -0.24220878, z: -0.018358799}
+    maskSize: 0.225
+    bigScale: 2
+    projectionDepth: 0.12
+    rotation: 76
+  - localPoint: {x: -0.7722776, y: 0.45, z: -0.15999997}
+    localNormal: {x: -0.9689004, y: -0.24669847, z: -0.019284878}
+    maskSize: 0.225
+    bigScale: 2
+    projectionDepth: 0.12
+    rotation: 129
+  - localPoint: {x: -0.7154013, y: 0.36, z: 0.46000016}
+    localNormal: {x: -0.9651956, y: -0.2529, z: 0.066625915}
+    maskSize: 0.225
+    bigScale: 2
+    projectionDepth: 0.12
+    rotation: 182
+  - localPoint: {x: -0.6592556, y: 0.45, z: 1.0800004}
+    localNormal: {x: -0.9485177, y: -0.25907803, z: 0.18218891}
+    maskSize: 0.225
+    bigScale: 2
+    projectionDepth: 0.12
+    rotation: 235
+  - localPoint: {x: -0.45224863, y: 0.36, z: 1.7000005}
+    localNormal: {x: -0.9089815, y: -0.2611278, z: 0.32490733}
+    maskSize: 0.225
+    bigScale: 2
+    projectionDepth: 0.12
+    rotation: 288
+  - localPoint: {x: 1.4210855e-14, y: 0.09135628, z: -1.1000003}
+    localNormal: {x: 4.9150415e-14, y: 1, z: -0.00000015827285}
+    maskSize: 0.225
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 0
+  - localPoint: {x: 7.1054274e-15, y: 0.09135628, z: -0.45000017}
+    localNormal: {x: 5.5591274e-14, y: 1, z: -0.00000017901357}
+    maskSize: 0.225
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 61
+  - localPoint: {x: -3.5527137e-15, y: 0.09135628, z: 0.19999999}
+    localNormal: {x: 4.9194488e-14, y: 1, z: -0.00000014943443}
+    maskSize: 0.225
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 122
+  - localPoint: {x: -1.4210855e-14, y: 0.09135628, z: 0.85000014}
+    localNormal: {x: 4.867273e-14, y: 1, z: -0.00000017656598}
+    maskSize: 0.225
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 183
+  - localPoint: {x: -1.4210855e-14, y: 0.09135628, z: 1.3960001}
+    localNormal: {x: 2.774589e-14, y: 1, z: -0.00000015446342}
+    maskSize: 0.225
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 32
+  - localPoint: {x: 2.842171e-14, y: 0.48034573, z: -1.6500005}
+    localNormal: {x: 1.581033e-14, y: 1, z: -0.00000006913251}
+    maskSize: 0.175
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 0
+  - localPoint: {x: -2.842171e-14, y: 0.6031971, z: 2.0000005}
+    localNormal: {x: -8.2648833e-22, y: 1, z: -0.00000018025969}
+    maskSize: 0.175
+    bigScale: 2
+    projectionDepth: 0.006
+    rotation: 61
+  bigLayerDamageRatio: 0.15
+  explosionOpensBigLayer: 1
+  scorchMaterial: {fileID: 2100000, guid: a766ed233203d13448ef161cedf1d58a, type: 2}
+  showScorch: 1
+  scorchOffset: 0.004
   drawHitGizmos: 0
 --- !u!4 &652861714544183229 stripped
 Transform:

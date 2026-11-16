@@ -39,6 +39,9 @@ public class RuntimeMeshFillController : MonoBehaviour
     [Tooltip("Hệ số bán kính cho vụ nổ / đâm (Banger) so với đạn thường.")]
     [SerializeField] private float explosionRadiusMultiplier = 1.5f;
 
+    [Tooltip("Max Depth Behind Impact riêng cho vụ nổ (m): vụ nổ xé cả mảng vỏ quanh điểm nổ, không chỉ lớp mặt trước.")]
+    [SerializeField] private float explosionMaxDepth = 2f;
+
     [Tooltip("Vùng có diện tích (m², world) nhỏ hơn mức này (mảnh li ti do viền mask răng cưa) " +
              "luôn được lấp và không bị sát thương mở ra.")]
     [SerializeField] private float minDamageRegionArea = 0.001f;
@@ -58,16 +61,57 @@ public class RuntimeMeshFillController : MonoBehaviour
     [Tooltip("Nâng miếng lỗ lên trên mặt sàn khoảng này (m) để không bị z-fighting.")]
     [SerializeField] private float decalOffset = 0.003f;
 
+    [Header("Hole Layers")]
+    [Tooltip("Lỗ 2 lớp (ghi tự động khi Bake Hole Pattern có Big Layer Scale > 1): mảnh lấp của lỗ to " +
+             "được cắt lại bằng mask này ở kích thước gốc thành lõi bé + vành.")]
+    [SerializeField] private Texture2D layerMask;
+
+    [SerializeField, Range(0f, 1f)] private float layerAlphaThreshold = 0.5f;
+
+    [SerializeField, Range(4, 10)] private int layerEdgeDetail = 6;
+
+    [SerializeField] private List<HoleLayerSeed> layerSeeds = new List<HoleLayerSeed>();
+
+    [Tooltip("Sát thương / máu tối đa >= giá trị này thì mở cả lõi bé lẫn vành ngay. " +
+             "Nhỏ hơn: chỉ mở lõi bé, bắn lại vào lỗ đó mới mở vành.")]
+    [SerializeField, Range(0f, 1f)] private float bigLayerDamageRatio = 0.15f;
+
+    [Tooltip("Vụ nổ / đâm (Banger) luôn mở cả 2 lớp.")]
+    [SerializeField] private bool explosionOpensBigLayer = true;
+
+    [Tooltip("Vệt cháy xém phủ lên vành khi lõi bé đã thủng: báo cho người chơi chỗ này bắn tiếp sẽ toác to. " +
+             "Để trống dùng shader MeshEditor/HoleScorch mặc định.")]
+    [SerializeField] private Material scorchMaterial;
+
+    [SerializeField] private bool showScorch = true;
+
+    [Tooltip("Nâng vệt cháy lên trên mặt vỏ khoảng này (m) để không bị z-fighting.")]
+    [SerializeField] private float scorchOffset = 0.004f;
+
     [SerializeField] private bool drawHitGizmos;
 
     // ---- Dữ liệu vùng dùng chung --------------------------------------------
     // Mọi tàu cùng Source Mesh có cùng các vùng: tìm lỗ + lấp lỗ chỉ chạy 1 lần
     // cho mỗi mesh, các lần spawn sau chỉ đọc cache.
 
+    private const int LayerSingle = 0;
+    private const int LayerInner = 1;
+    private const int LayerRing = 2;
+
     private sealed class RegionData
     {
         public int id;
         public int submesh;
+
+        // Lỗ 2 lớp: lõi bé (LayerInner) và vành (LayerRing) trỏ tới nhau qua partner (index trong list).
+        public int layer = LayerSingle;
+        public int partner = -1;
+
+        // Vành: toạ độ đỉnh trong không gian mask của lớp bé (tâm = 0, 1 = Mask Size) và
+        // hệ số lớp to. Shader vệt cháy lấy mẫu mask ở các kích thước từ bé tới to.
+        public Vector2[] maskUV;
+        public float bigScale;
+
         public Vector3[] positions;
         public Vector2[] uv;
         public int[] triangles;
@@ -86,8 +130,8 @@ public class RuntimeMeshFillController : MonoBehaviour
         public bool hasUV;
     }
 
-    private static readonly Dictionary<(Mesh, float), SharedRegions> cache =
-        new Dictionary<(Mesh, float), SharedRegions>();
+    private static readonly Dictionary<(Mesh, float, Texture2D), SharedRegions> cache =
+        new Dictionary<(Mesh, float, Texture2D), SharedRegions>();
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()
@@ -100,7 +144,7 @@ public class RuntimeMeshFillController : MonoBehaviour
         cache.Clear();
     }
 
-    // ---- Trạng thái của tàu này -----------------------------------------------
+    //Trạng thái của tàu này 
 
     private SharedRegions shared;
 
@@ -108,18 +152,25 @@ public class RuntimeMeshFillController : MonoBehaviour
     private bool[] intact;
     private bool[] isDecal;
     private bool[] damageable;
+    private int[] hitStamp;
+    private int hitCounter;
     private int[] vertexOffset;
     private int[] patchSlot;
     private readonly Dictionary<int, int> indexById = new Dictionary<int, int>();
 
     // Toàn bộ mảnh lấp của tàu gộp thành 1 mesh (mỗi vật liệu 1 submesh), miếng lỗ
-    // trên sàn gộp thành 1 mesh khác: 1-3 draw call thay vì mỗi vùng 1 renderer.
     private Mesh patchMesh;
     private MeshRenderer patchRenderer;
     private int patchSlotCount;
 
     private Mesh decalMesh;
     private MeshRenderer decalRenderer;
+
+    // Vệt cháy trên các vành (chỉ hiện khi lõi bé của vành đó đã thủng).
+    private Mesh scorchMesh;
+    private MeshRenderer scorchRenderer;
+    private int[] scorchOffsetByRegion;
+    private Material runtimeScorchMaterial;
 
     private bool dirty;
     private Material runtimeDecalMaterial;
@@ -148,7 +199,7 @@ public class RuntimeMeshFillController : MonoBehaviour
             return;
         }
 
-        shared = GetSharedRegions(sourceMesh, weldTolerance);
+        shared = GetSharedRegions();
 
         if (shared.regions.Count == 0)
         {
@@ -167,9 +218,16 @@ public class RuntimeMeshFillController : MonoBehaviour
 
     // ---- Cache ------------------------------------------------------------------
 
-    private static SharedRegions GetSharedRegions(Mesh mesh, float tolerance)
+    private bool HasLayers =>
+        layerMask != null && layerMask.isReadable && layerSeeds != null && layerSeeds.Count > 0;
+
+    private SharedRegions GetSharedRegions()
     {
-        var key = (mesh, tolerance);
+        Mesh mesh = sourceMesh;
+        float tolerance = weldTolerance;
+        bool layered = HasLayers;
+
+        var key = (mesh, tolerance, layered ? layerMask : null);
         if (cache.TryGetValue(key, out SharedRegions data))
             return data;
 
@@ -187,15 +245,163 @@ public class RuntimeMeshFillController : MonoBehaviour
         mesh.GetUVs(0, sourceUV);
         data.hasUV = sourceUV.Count == vertices.Length;
 
+        int layeredCount = 0;
+        var seeds = new List<HoleLayerSeed>();
+
         foreach (FillRegion region in regions)
         {
             RegionData r = BuildRegionData(region, vertices, data.hasUV ? sourceUV : null);
-            if (r != null)
-                data.regions.Add(r);
+            if (r == null)
+                continue;
+
+            if (layered && FindSeeds(r, seeds) &&
+                TrySplitLayers(r, seeds, data.hasUV, out RegionData inner, out RegionData ring))
+            {
+                inner.layer = LayerInner;
+                ring.layer = LayerRing;
+                inner.partner = data.regions.Count + 1;
+                ring.partner = data.regions.Count;
+                AddRegion(data, inner);
+                AddRegion(data, ring);
+                layeredCount++;
+                continue;
+            }
+
+            AddRegion(data, r);
         }
 
-        Debug.Log($"Built {data.regions.Count} fill regions for '{mesh.name}' (shared).");
+        Debug.Log($"Built {data.regions.Count} fill regions for '{mesh.name}' (shared" +
+                  (layered ? $", {layeredCount} lỗ 2 lớp" : "") + ").");
         return data;
+    }
+
+    private static void AddRegion(SharedRegions data, RegionData r)
+    {
+        r.id = data.regions.Count;
+        data.regions.Add(r);
+    }
+
+    // Các nhát cắt có tâm nằm trên mặt phẳng của vùng (trong độ sâu cắt) và trong hộp bao của vùng.
+    private bool FindSeeds(RegionData r, List<HoleLayerSeed> result)
+    {
+        result.Clear();
+
+        if (r.normal == Vector3.zero)
+            return false;
+
+        Matrix4x4 toWorld = transform.localToWorldMatrix;
+        Vector3 worldNormal = transform.worldToLocalMatrix.transpose.MultiplyVector(r.normal).normalized;
+        Vector3 worldCenter = toWorld.MultiplyPoint3x4(r.center);
+        Bounds worldBounds = WorldBounds(r.bounds, toWorld);
+
+        foreach (HoleLayerSeed seed in layerSeeds)
+        {
+            if (seed.maskSize <= 0f)
+                continue;
+
+            Vector3 p = toWorld.MultiplyPoint3x4(seed.localPoint);
+            float depth = Mathf.Max(seed.projectionDepth, 0.01f);
+
+            if (Mathf.Abs(Vector3.Dot(p - worldCenter, worldNormal)) > depth)
+                continue;
+
+            Bounds b = worldBounds;
+            b.Expand(depth * 2f);
+            if (!b.Contains(p))
+                continue;
+
+            result.Add(seed);
+        }
+
+        return result.Count > 0;
+    }
+
+    // Cắt mảnh lấp của lỗ to bằng mask kích thước gốc: phần còn lại là vành, các lỗ mới
+    private bool TrySplitLayers(RegionData big, List<HoleLayerSeed> seeds, bool hasUV,
+        out RegionData inner, out RegionData ring)
+    {
+        inner = ring = null;
+
+        var normals = new Vector3[big.positions.Length];
+        for (int i = 0; i < normals.Length; i++)
+            normals[i] = big.normal;
+
+        var patch = new Mesh { name = "LayerSplit" };
+        patch.vertices = big.positions;
+        patch.normals = normals;
+        if (hasUV)
+            patch.uv = big.uv;
+        patch.triangles = big.triangles;
+
+        Mesh current = patch;
+        Matrix4x4 normalToWorld = transform.worldToLocalMatrix.transpose;
+
+        try
+        {
+            foreach (HoleLayerSeed seed in seeds)
+            {
+                Mesh cut = MeshGeometry.RemoveExplosiveMask(
+                    current, transform, transform.TransformPoint(seed.localPoint),
+                    normalToWorld.MultiplyVector(seed.localNormal), layerMask, seed.maskSize,
+                    layerAlphaThreshold, Mathf.Max(seed.projectionDepth, 0.01f), 0.1f,
+                    layerEdgeDetail, seed.rotation);
+
+                // null = mask phủ hết mảnh lấp: không còn vành.
+                if (cut == null)
+                    return false;
+
+                if (current != patch)
+                    SafeDestroy(current);
+                current = cut;
+            }
+
+            if (current == patch)
+                return false;
+
+            Mesh filled = MeshSurfacePatcher.FillClosedHoles(current, out List<FillRegion> holes, weldTolerance);
+            SafeDestroy(filled);
+
+            if (holes == null || holes.Count == 0)
+                return false;
+
+            Vector3[] ringVertices = current.vertices;
+            var ringUV = new List<Vector2>();
+            if (hasUV)
+                current.GetUVs(0, ringUV);
+
+            var innerRegion = new FillRegion { submeshIndex = big.submesh };
+            foreach (FillRegion h in holes)
+                innerRegion.triangleIndices.AddRange(h.triangleIndices);
+
+            var ringRegion = new FillRegion { submeshIndex = big.submesh };
+            for (int s = 0; s < current.subMeshCount; s++)
+                ringRegion.triangleIndices.AddRange(current.GetTriangles(s));
+
+            inner = BuildRegionData(innerRegion, ringVertices, hasUV ? ringUV : null);
+            ring = BuildRegionData(ringRegion, ringVertices, hasUV ? ringUV : null);
+
+            if (inner == null || ring == null)
+                return false;
+
+            float total = inner.area + ring.area;
+            if (inner.area < big.area * 0.01f || ring.area < big.area * 0.01f ||
+                Mathf.Abs(total - big.area) > big.area * 0.02f)
+            {
+                inner = ring = null;
+                return false;
+            }
+
+            // Pháp tuyến dùng chung của mảnh gốc: 2 lớp nằm cùng mặt phẳng, tránh lệch sáng.
+            inner.normal = ring.normal = big.normal;
+            SetScorchUV(ring, seeds[0]);
+            return true;
+        }
+        finally
+        {
+            if (current != patch)
+                SafeDestroy(current);
+            SafeDestroy(patch);
+        }
     }
 
     private static RegionData BuildRegionData(FillRegion region, Vector3[] sourceVertices, List<Vector2> sourceUV)
@@ -225,9 +431,6 @@ public class RuntimeMeshFillController : MonoBehaviour
             triangles.Add(index);
         }
 
-        // Mảnh lấp là mặt phẳng: mọi đỉnh dùng pháp tuyến của mặt phẳng đó. Copy pháp
-        // tuyến từ đỉnh viền thì một đỉnh trùng vị trí với mặt đứng (pháp tuyến nằm ngang)
-        // làm cả chùm tam giác ear-clipping dùng chung đỉnh đó bị tô tối thành vệt.
         Vector3 areaVector = Vector3.zero;
         for (int i = 0; i + 2 < triangles.Count; i += 3)
             areaVector += Vector3.Cross(
@@ -343,6 +546,15 @@ public class RuntimeMeshFillController : MonoBehaviour
             }
         }
 
+        // Lõi bé có thể nhỏ hơn Min Damage Region Area: 2 lớp của 1 lỗ bị sát thương cùng nhau.
+        hitStamp = new int[count];
+        for (int i = 0; i < count; i++)
+        {
+            int partner = regions[i].partner;
+            if (partner >= 0 && damageable[partner])
+                damageable[i] = true;
+        }
+
         patchSlotCount = slotMaterials.Count;
 
         if (patchPositions.Count > 0)
@@ -360,7 +572,60 @@ public class RuntimeMeshFillController : MonoBehaviour
             decalRenderer.shadowCastingMode = ShadowCastingMode.Off;
         }
 
+        BuildScorchMesh(normalMatrix);
+
         RebuildIndices();
+    }
+
+    // Bản sao của mọi vành, nâng nhẹ lên trên mặt vỏ. uv0 = toạ độ mask của lớp bé,
+    private void BuildScorchMesh(Matrix4x4 normalMatrix)
+    {
+        List<RegionData> regions = shared.regions;
+        scorchOffsetByRegion = new int[regions.Count];
+
+        Material material = showScorch && layerMask != null ? GetScorchMaterial() : null;
+        if (material == null)
+            return;
+
+        var positions = new List<Vector3>();
+        var normals = new List<Vector3>();
+        var maskUV = new List<Vector2>();
+        var scales = new List<Vector2>();
+
+        for (int i = 0; i < regions.Count; i++)
+        {
+            RegionData r = regions[i];
+            scorchOffsetByRegion[i] = -1;
+
+            if (r.layer != LayerRing || r.maskUV == null)
+                continue;
+
+            Vector3 worldNormal = normalMatrix.MultiplyVector(r.normal).normalized;
+            Vector3 lift = transform.InverseTransformVector(worldNormal * scorchOffset);
+
+            scorchOffsetByRegion[i] = positions.Count;
+            for (int v = 0; v < r.positions.Length; v++)
+            {
+                positions.Add(r.positions[v] + lift);
+                normals.Add(r.normal);
+                scales.Add(new Vector2(r.bigScale, 0f));
+            }
+            maskUV.AddRange(r.maskUV);
+        }
+
+        if (positions.Count == 0)
+            return;
+
+        scorchMesh = CreateMesh("HoleScorch", positions, normals, maskUV, 1);
+        scorchMesh.SetUVs(1, scales);
+        scorchRenderer = CreateChildRenderer("Runtime_Hole_Scorch", scorchMesh, new[] { material });
+        scorchRenderer.shadowCastingMode = ShadowCastingMode.Off;
+        scorchRenderer.receiveShadows = false;
+
+        var block = new MaterialPropertyBlock();
+        block.SetTexture("_MaskTex", layerMask);
+        block.SetFloat("_Threshold", layerAlphaThreshold);
+        scorchRenderer.SetPropertyBlock(block);
     }
 
     private static Mesh CreateMesh(string name, List<Vector3> positions, List<Vector3> normals, List<Vector2> uv, int submeshCount)
@@ -435,6 +700,62 @@ public class RuntimeMeshFillController : MonoBehaviour
             decalMesh.SetTriangles(indexBuffer, 0, false);
             decalRenderer.enabled = indexBuffer.Count > 0;
         }
+
+        if (scorchMesh != null)
+        {
+            indexBuffer.Clear();
+
+            for (int i = 0; i < regions.Count; i++)
+            {
+                int offset = scorchOffsetByRegion[i];
+                if (offset >= 0 && intact[i] && !intact[regions[i].partner])
+                    AppendTriangles(regions[i], offset);
+            }
+
+            scorchMesh.SetTriangles(indexBuffer, 0, false);
+            scorchRenderer.enabled = indexBuffer.Count > 0;
+        }
+    }
+
+    // Chiếu đỉnh của vành lên mặt phẳng mask giống hệt MeshGeometry.RemoveExplosiveMask
+    private void SetScorchUV(RegionData ring, HoleLayerSeed seed)
+    {
+        Vector3 n = transform.worldToLocalMatrix.transpose.MultiplyVector(seed.localNormal).normalized;
+        Vector3 reference = Mathf.Abs(Vector3.Dot(n, Vector3.up)) > 0.98f ? Vector3.right : Vector3.up;
+        Vector3 right = Vector3.Cross(reference, n).normalized;
+        Vector3 up = Vector3.Cross(n, right).normalized;
+        Quaternion rotation = Quaternion.AngleAxis(seed.rotation, n);
+        right = rotation * right;
+        up = rotation * up;
+
+        Vector3 center = transform.TransformPoint(seed.localPoint);
+        float inv = 1f / Mathf.Max(seed.maskSize, 1e-5f);
+
+        ring.maskUV = new Vector2[ring.positions.Length];
+        for (int i = 0; i < ring.positions.Length; i++)
+        {
+            Vector3 d = transform.TransformPoint(ring.positions[i]) - center;
+            ring.maskUV[i] = new Vector2(Vector3.Dot(d, right) * inv, Vector3.Dot(d, up) * inv);
+        }
+
+        // Seed bake trước khi có bigScale: dùng hệ số mặc định 2.
+        ring.bigScale = seed.bigScale > 1f ? seed.bigScale : 2f;
+    }
+
+    private Material GetScorchMaterial()
+    {
+        if (scorchMaterial != null)
+            return scorchMaterial;
+
+        if (runtimeScorchMaterial == null)
+        {
+            Shader shader = Shader.Find("MeshEditor/HoleScorch");
+            if (shader == null)
+                return null;
+            runtimeScorchMaterial = new Material(shader) { name = "RuntimeHoleScorch" };
+        }
+
+        return runtimeScorchMaterial;
     }
 
     private void AppendTriangles(RegionData r, int offset)
@@ -608,6 +929,17 @@ public class RuntimeMeshFillController : MonoBehaviour
         return shared != null ? shared.regions.Count : 0;
     }
 
+#if UNITY_EDITOR
+    // Ghi từ Hole Pattern Bake.
+    public void SetHoleLayers(Texture2D mask, float alphaThreshold, int edgeDetail, List<HoleLayerSeed> seeds)
+    {
+        layerMask = mask;
+        layerAlphaThreshold = alphaThreshold;
+        layerEdgeDetail = edgeDetail;
+        layerSeeds = seeds != null ? new List<HoleLayerSeed>(seeds) : new List<HoleLayerSeed>();
+    }
+#endif
+
     // ---- Sát thương ---------------------------------------------------------------
 
     public float GetHitRadius(float damageRatio)
@@ -648,12 +980,12 @@ public class RuntimeMeshFillController : MonoBehaviour
                 impact = rayImpact;
         }
 
-        return OpenRegions(impact, radius, hasDirection ? hitDirection : Vector3.zero, hitRegion);
+        bool heavy = damageRatio >= bigLayerDamageRatio || (isExplosion && explosionOpensBigLayer);
+        return OpenRegions(impact, radius, hasDirection ? hitDirection : Vector3.zero, hitRegion, heavy,
+            isExplosion ? Mathf.Max(explosionMaxDepth, maxDepthBehindImpact) : maxDepthBehindImpact);
     }
 
     // Tia đạn (world) giao với tam giác của các vùng còn nguyên. Làm trong không gian
-    // local của mesh: chỉ đổi tia 1 lần thay vì nhân ma trận cho từng đỉnh. Hướng tia
-    // local = toLocal * dir (không chuẩn hóa) nên tham số t vẫn là khoảng cách world.
     private bool TryRaycastRegions(Vector3 origin, Vector3 dir, float backtrack,
         out Vector3 hitPoint, out int hitRegion)
     {
@@ -671,7 +1003,7 @@ public class RuntimeMeshFillController : MonoBehaviour
 
         for (int i = 0; i < regions.Count; i++)
         {
-            if (!damageable[i] || !intact[i])
+            if (!damageable[i] || !CanDamage(i))
                 continue;
 
             RegionData r = regions[i];
@@ -768,7 +1100,6 @@ public class RuntimeMeshFillController : MonoBehaviour
     }
 
     // Nguồn nằm ngoài tàu (vd. Banger nổ cách thân tàu vài mét): lấy điểm tia từ nguồn
-    // theo hướng sát thương đi vào bounding box của mesh, để lỗ mở đúng mặt bị đâm.
     private Vector3 GetImpactPoint(Vector3 sourcePoint, Vector3 hitDirection)
     {
         if (sourceMesh == null)
@@ -790,8 +1121,6 @@ public class RuntimeMeshFillController : MonoBehaviour
     }
 
     // Điểm trên đường bay (origin + dir * t) gần vùng đầu tiên mà đường bay đi qua
-    // trong phạm vi radius. Cho phép t âm tới -radius vì vị trí đạn lúc chạm
-    // collider có thể đã nằm sau bề mặt.
     private bool TryFindRayImpact(Vector3 origin, Vector3 dir, float radius, out Vector3 impact)
     {
         impact = origin;
@@ -845,15 +1174,67 @@ public class RuntimeMeshFillController : MonoBehaviour
 
     public int OpenRegionsInRadius(Vector3 worldPoint, float worldRadius, Vector3 hitDirection)
     {
-        return OpenRegions(worldPoint, worldRadius, hitDirection, -1);
+        return OpenRegions(worldPoint, worldRadius, hitDirection, -1, true, maxDepthBehindImpact);
+    }
+
+    // Lõi bé đã mở nhưng vành còn: đạn bay qua lỗ bé vẫn tính là trúng lỗ đó (mở vành),
+    private bool CanDamage(int i)
+    {
+        if (intact[i])
+            return true;
+
+        RegionData r = shared.regions[i];
+        return r.layer == LayerInner && intact[r.partner];
+    }
+
+    // Mở vùng i do 1 phát bắn. Lỗ 2 lớp: lõi bé mở trước, vành chỉ mở khi sát thương lớn
+    private int Damage(int i, bool heavy)
+    {
+        RegionData r = shared.regions[i];
+
+        if (r.layer == LayerSingle)
+        {
+            if (!intact[i])
+                return 0;
+            intact[i] = false;
+            return 1;
+        }
+
+        int inner = r.layer == LayerInner ? i : r.partner;
+        int ring = r.layer == LayerRing ? i : r.partner;
+
+        if (hitStamp[inner] == hitCounter)
+            return 0;
+        hitStamp[inner] = hitCounter;
+
+        int opened = 0;
+
+        if (intact[inner])
+        {
+            intact[inner] = false;
+            opened++;
+
+            if (!heavy)
+                return opened;
+        }
+
+        if (intact[ring])
+        {
+            intact[ring] = false;
+            opened++;
+        }
+
+        return opened;
     }
 
     // hitRegion: vùng mà tia đạn trúng trực tiếp (-1 = không có) - luôn được mở.
-    private int OpenRegions(Vector3 worldPoint, float worldRadius, Vector3 hitDirection, int hitRegion)
+    private int OpenRegions(Vector3 worldPoint, float worldRadius, Vector3 hitDirection, int hitRegion, bool heavy,
+        float maxDepth)
     {
         if (shared == null || intact == null)
             return 0;
 
+        hitCounter++;
         lastHitPoint = worldPoint;
         lastHitRadius = worldRadius;
 
@@ -866,11 +1247,8 @@ public class RuntimeMeshFillController : MonoBehaviour
         float radiusSqr = worldRadius * worldRadius;
         float snapSqr = snapDistance > 0f ? snapDistance * snapDistance : 0f;
 
-        if (hitRegion >= 0 && intact[hitRegion])
-        {
-            intact[hitRegion] = false;
-            opened++;
-        }
+        if (hitRegion >= 0)
+            opened += Damage(hitRegion, heavy);
 
         int nearest = -1;
         float nearestSqr = float.MaxValue;
@@ -884,7 +1262,6 @@ public class RuntimeMeshFillController : MonoBehaviour
             RegionData r = regions[i];
 
             // Loại nhanh bằng AABB world (cận dưới của khoảng cách): xa hơn cả bán kính lẫn
-            // khoảng snap / vùng gần nhất đã có thì không cần xét từng tam giác.
             float lowerBound = WorldBounds(r.bounds, toWorld).SqrDistance(worldPoint);
             float limit = opened > 0 ? radiusSqr : Mathf.Max(radiusSqr, Mathf.Min(snapSqr, nearestSqr));
             if (lowerBound > limit)
@@ -897,7 +1274,7 @@ public class RuntimeMeshFillController : MonoBehaviour
 
                 // Nằm quá sâu sau điểm trúng theo hướng đạn: mạn bên kia, đáy tàu...
                 float depth = Vector3.Dot(toWorld.MultiplyPoint3x4(r.center) - worldPoint, dir);
-                if (depth > maxDepthBehindImpact)
+                if (depth > maxDepth)
                     continue;
             }
 
@@ -905,8 +1282,7 @@ public class RuntimeMeshFillController : MonoBehaviour
 
             if (dSqr <= radiusSqr)
             {
-                intact[i] = false;
-                opened++;
+                opened += Damage(i, heavy);
             }
             else if (dSqr < nearestSqr)
             {
@@ -920,8 +1296,7 @@ public class RuntimeMeshFillController : MonoBehaviour
             snapDistance > 0f &&
             nearestSqr <= snapDistance * snapDistance)
         {
-            intact[nearest] = false;
-            opened = 1;
+            opened = Damage(nearest, heavy);
         }
 
         if (opened > 0)
@@ -942,8 +1317,6 @@ public class RuntimeMeshFillController : MonoBehaviour
     }
 
     // Khoảng cách (bình phương, world) từ điểm tới BỀ MẶT của vùng (điểm gần nhất trên
-    // các tam giác), không chỉ tới đỉnh: điểm trúng giữa 1 mảnh lấp lớn có khoảng cách 0.
-    // Tính trong world vì scale không đều làm méo khoảng cách local.
     private static float ClosestDistanceSqr(RegionData r, Vector3 worldPoint, Matrix4x4 toWorld)
     {
         float best = float.MaxValue;
@@ -1014,11 +1387,15 @@ public class RuntimeMeshFillController : MonoBehaviour
         SafeDestroy(patchMesh);
         SafeDestroy(decalMesh);
         SafeDestroy(runtimeDecalMaterial);
+        SafeDestroy(scorchMesh);
+        SafeDestroy(runtimeScorchMaterial);
 
         if (patchRenderer != null)
             SafeDestroy(patchRenderer.gameObject);
         if (decalRenderer != null)
             SafeDestroy(decalRenderer.gameObject);
+        if (scorchRenderer != null)
+            SafeDestroy(scorchRenderer.gameObject);
     }
 
     private static void SafeDestroy(Object obj)
