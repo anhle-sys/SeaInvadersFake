@@ -56,26 +56,42 @@ public class BoatMovementController : MonoBehaviour
     private float currentYawRate;     // độ/giây
     private float lastAcceleration;
     private bool wasBattleStarted;
-    private float prevDesiredHeading;
-    private bool hasPrevHeading;
-    private float headingRate;    
     private float referenceMass = 1f;
     private float radiusScale = 1f;
     private float rotScale = 1f;
-    private float wantedSpeed;        // tốc độ muốn chạy ở bước trước (chưa tính phanh vì vật cản)
-    private float allowedSpeed;       // tốc độ được phép chạy ở bước trước (đã tính phanh vì vật cản / tàu chắn mũi)
-    private float stuckTimer;
-    private float waitingTimer;       // muốn chạy nhưng đang tự phanh đứng chờ
     private Vector3 aheadSteer;       // lực vòng qua tàu chắn mũi, đã làm mượt
-    private float unstickTimer;       // > 0: đang gỡ kẹt
-    private int unstickSide;          // chiều xoay khi gỡ kẹt: +1 phải, -1 trái, 0 chưa chốt
-    private float stuckRetryTimer;    // > 0: vừa gỡ kẹt xong
     private bool steeringAroundBoat;  // đang bẻ lái vòng qua tàu chắn mũi
 
+    // Đo tốc độ xoay của hướng mong muốn để bù trước khi bẻ lái (feed-forward)
+    private struct HeadingTracker
+    {
+        public float prevDesired;
+        public bool hasPrev;
+        public float rate;            // độ/giây, đã làm mượt
+    }
+    private HeadingTracker heading;
+
+    // Phát hiện bị chặn mũi và gỡ kẹt (lùi + xoay, rồi chạy chếch để vòng qua)
+    private struct StuckState
+    {
+        public float wantedSpeed;     // tốc độ muốn chạy ở bước trước (chưa tính phanh vì vật cản)
+        public float allowedSpeed;    // tốc độ được phép chạy ở bước trước (đã tính phanh vì vật cản / tàu chắn mũi)
+        public float blockedTimer;    // bị tì mũi, không nhúc nhích được bao lâu
+        public float waitingTimer;    // muốn chạy nhưng đang tự phanh đứng chờ bao lâu
+        public float unstickTimer;    // > 0: đang gỡ kẹt
+        public int unstickSide;       // chiều xoay khi gỡ kẹt: +1 phải, -1 trái, 0 chưa chốt
+        public float retryTimer;      // > 0: vừa gỡ kẹt xong
+    }
+    private StuckState stuck;
+
     // Đẩy lùi khi trúng đòn: cộng thêm lên vận tốc lái, tách riêng để không lẫn vào tốc độ lái đo được
+    private struct KnockbackState
+    {
+        public Vector3 applied;       // đã cộng vào rb ở bước vật lý trước
+        public Vector3 pending;       // cú đánh mới, chờ bước vật lý kế tiếp
+    }
+    private KnockbackState knockback;
     private BoatHealth health;
-    private Vector3 appliedKnockback; // đã cộng vào rb ở bước vật lý trước
-    private Vector3 pendingKnockback; // cú đánh mới, chờ bước vật lý kế tiếp
 
     // Né cả tàu địch (Gunner / Carrier bật; Banger để tắt vì nó lao vào địch)
     public bool AvoidEnemies { get; set; }
@@ -85,8 +101,8 @@ public class BoatMovementController : MonoBehaviour
     public bool SuppressUnstick { get; set; }
     private bool boundsLimited;       // bước trước bị mép tầm nhìn camera giữ lại (không phải kẹt)
 
-    private bool IsUnsticking => unstickTimer > 0f;
-    private bool IsReversing => unstickTimer > UnstickSwingTime;
+    private bool IsUnsticking => stuck.unstickTimer > 0f;
+    private bool IsReversing => stuck.unstickTimer > UnstickSwingTime;
 
     // Logic di chuyển riêng của từng loại tàu
     public IBoatMovementModifier Modifier { get; set; }
@@ -127,7 +143,7 @@ public class BoatMovementController : MonoBehaviour
     {
         if (health != null)
             health.OnDamaged -= HandleDamaged;
-        appliedKnockback = pendingKnockback = Vector3.zero;
+        knockback.applied = knockback.pending = Vector3.zero;
     }
 
     public void ApplyKnockback(Vector3 pushDirection, float strength01)
@@ -142,8 +158,8 @@ public class BoatMovementController : MonoBehaviour
 
         // Tàu nặng (rotScale nhỏ) bị đẩy ít hơn
         float maxSpeed = knockbackSpeed * rotScale;
-        pendingKnockback += away.normalized * (maxSpeed * Mathf.Clamp(strength01, 0.4f, 2f));
-        pendingKnockback = Vector3.ClampMagnitude(pendingKnockback, maxSpeed * 2.5f);
+        knockback.pending += away.normalized * (maxSpeed * Mathf.Clamp(strength01, 0.4f, 2f));
+        knockback.pending = Vector3.ClampMagnitude(knockback.pending, maxSpeed * 2.5f);
     }
 
     private void HandleDamaged(float damageRatio, Vector3 hitPoint, Vector3 hitDirection)
@@ -217,10 +233,10 @@ public class BoatMovementController : MonoBehaviour
         currentSpeed = 0f;
         currentYawRate = 0f;
         lastAcceleration = 0f;
-        hasPrevHeading = false;
-        headingRate = 0f;
+        heading.hasPrev = false;
+        heading.rate = 0f;
         ResetStuck();
-        appliedKnockback = pendingKnockback = Vector3.zero;
+        knockback.applied = knockback.pending = Vector3.zero;
         Modifier?.OnMovementReset();
         sensors?.ResetPass();
 
@@ -247,7 +263,7 @@ public class BoatMovementController : MonoBehaviour
             currentSpeed = 0f;
             currentYawRate = 0f;
             ResetStuck();
-            appliedKnockback = pendingKnockback = Vector3.zero;
+            knockback.applied = knockback.pending = Vector3.zero;
         }
 
         if (!started)
@@ -261,7 +277,7 @@ public class BoatMovementController : MonoBehaviour
         Vector3 forward = rb.rotation * Vector3.forward;
         Vector3 right = rb.rotation * Vector3.right;
         // Bỏ phần đẩy lùi đã cộng ở bước trước: lái chỉ đo vận tốc của chính nó
-        Vector3 velocity = rb.linearVelocity - appliedKnockback;
+        Vector3 velocity = rb.linearVelocity - knockback.applied;
 
         // Tốc độ thực tế dọc thân tàu (đã gồm va chạm): tàu bị chặn sẽ không "tích" tốc độ ảo
         float measuredForward = Vector3.Dot(velocity, forward);
@@ -292,8 +308,8 @@ public class BoatMovementController : MonoBehaviour
         float angle = hasInput ? UpdateHeading(forward, obstacleSteer, dt, measuredForward, brakeDecel) : 0f;
         if (!hasInput)
         {
-            hasPrevHeading = false;
-            headingRate = 0f;
+            heading.hasPrev = false;
+            heading.rate = 0f;
         }
 
         float maxSpeed = moveSpeed * speedMultiplier;
@@ -311,11 +327,11 @@ public class BoatMovementController : MonoBehaviour
         Vector3 v = newRotation * Vector3.forward * currentSpeed + newRotation * Vector3.right * lateral;
 
         // Đẩy lùi khi trúng đòn: tắt dần theo thời gian, cộng các cú đánh mới
-        appliedKnockback = appliedKnockback * Mathf.Exp(-knockbackDecay * dt) + pendingKnockback;
-        pendingKnockback = Vector3.zero;
-        if (appliedKnockback.sqrMagnitude < 0.0004f)
-            appliedKnockback = Vector3.zero;
-        v += appliedKnockback;
+        knockback.applied = knockback.applied * Mathf.Exp(-knockbackDecay * dt) + knockback.pending;
+        knockback.pending = Vector3.zero;
+        if (knockback.applied.sqrMagnitude < 0.0004f)
+            knockback.applied = Vector3.zero;
+        v += knockback.applied;
 
         // Không cho tàu chạy ra khỏi tầm nhìn của camera trận đấu
         boundsLimited = false;
@@ -350,15 +366,15 @@ public class BoatMovementController : MonoBehaviour
         float angle = Vector3.SignedAngle(forward, dir, Vector3.up);
 
         // Đo tốc độ xoay của hướng mong muốn để bù trước (feed-forward)
-        float heading = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
-        if (hasPrevHeading)
+        float desiredHeading = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
+        if (heading.hasPrev)
         {
-            float rate = Mathf.DeltaAngle(prevDesiredHeading, heading) / dt;
-            if (Mathf.Abs(rate) > 360f) rate = headingRate; // nhảy hướng (đổi mục tiêu...): bỏ qua
-            headingRate = Mathf.Lerp(headingRate, rate, 1f - Mathf.Exp(-dt / FeedForwardSmoothing));
+            float rate = Mathf.DeltaAngle(heading.prevDesired, desiredHeading) / dt;
+            if (Mathf.Abs(rate) > 360f) rate = heading.rate; // nhảy hướng (đổi mục tiêu...): bỏ qua
+            heading.rate = Mathf.Lerp(heading.rate, rate, 1f - Mathf.Exp(-dt / FeedForwardSmoothing));
         }
-        prevDesiredHeading = heading;
-        hasPrevHeading = true;
+        heading.prevDesired = desiredHeading;
+        heading.hasPrev = true;
 
         if (Modifier != null)
             angle = Modifier.ModifyHeadingAngle(MakeContext(dt, measuredForward, brakeDecel), angle);
@@ -386,38 +402,38 @@ public class BoatMovementController : MonoBehaviour
 
         if (IsUnsticking)
         {
-            unstickTimer -= dt;
+            stuck.unstickTimer -= dt;
             return;
         }
 
-        stuckRetryTimer -= dt;
+        stuck.retryTimer -= dt;
 
         // Bị mép tầm nhìn giữ lại (tự bẻ lái quay vào) hoặc đang được yêu cầu đứng yên: không tính là kẹt
         if (boundsLimited || SuppressUnstick)
         {
-            stuckTimer = 0f;
-            waitingTimer = 0f;
+            stuck.blockedTimer = 0f;
+            stuck.waitingTimer = 0f;
             return;
         }
 
         // Kẹt thật: được phép chạy mà không nhúc nhích (bị vật khác tì vào mũi)
-        bool stuck = allowedSpeed > StuckMinWantedSpeed
-                     && measuredForward < Mathf.Min(StuckSpeedMax, allowedSpeed * StuckSpeedRatio);
-        stuckTimer = stuck ? stuckTimer + dt : 0f;
+        bool blocked = stuck.allowedSpeed > StuckMinWantedSpeed
+                     && measuredForward < Mathf.Min(StuckSpeedMax, stuck.allowedSpeed * StuckSpeedRatio);
+        stuck.blockedTimer = blocked ? stuck.blockedTimer + dt : 0f;
 
         // Đứng chờ: muốn chạy nhưng tự phanh vì có tàu / vật cản trước mũi. Cứ đứng xoay mũi tìm đường,
         // chỉ khi chờ quá lâu mới lùi
-        bool waiting = !stuck && wantedSpeed > StuckMinWantedSpeed && measuredForward < StuckSpeedMax;
-        waitingTimer = waiting ? waitingTimer + dt : 0f;
+        bool waiting = !blocked && stuck.wantedSpeed > StuckMinWantedSpeed && measuredForward < StuckSpeedMax;
+        stuck.waitingTimer = waiting ? stuck.waitingTimer + dt : 0f;
 
-        if (stuckTimer >= (stuckRetryTimer > 0f ? StuckRetryDelay : StuckDelay)
-            || waitingTimer >= (stuckRetryTimer > 0f ? WaitingStuckDelay * 2f : WaitingStuckDelay))
+        if (stuck.blockedTimer >= (stuck.retryTimer > 0f ? StuckRetryDelay : StuckDelay)
+            || stuck.waitingTimer >= (stuck.retryTimer > 0f ? WaitingStuckDelay * 2f : WaitingStuckDelay))
         {
-            stuckTimer = 0f;
-            waitingTimer = 0f;
-            unstickSide = 0;
-            unstickTimer = UnstickReverseTime + UnstickSwingTime;
-            stuckRetryTimer = StuckRetryWindow;
+            stuck.blockedTimer = 0f;
+            stuck.waitingTimer = 0f;
+            stuck.unstickSide = 0;
+            stuck.unstickTimer = UnstickReverseTime + UnstickSwingTime;
+            stuck.retryTimer = StuckRetryWindow;
         }
     }
 
@@ -425,31 +441,25 @@ public class BoatMovementController : MonoBehaviour
     {
         // Chốt chiều xoay một lần: về phía hướng mong muốn; nếu hướng đó ngay trước mũi (đang bị chặn)
         // thì né sang mạn ít bị chắn hơn, mặc định bên phải (hai tàu đối đầu cùng rẽ phải sẽ tránh được nhau)
-        if (unstickSide == 0)
+        if (stuck.unstickSide == 0)
         {
             if (Mathf.Abs(angle) > 15f)
-                unstickSide = angle > 0f ? 1 : -1;
+                stuck.unstickSide = angle > 0f ? 1 : -1;
             else
-                unstickSide = sensors.RightBlock > sensors.LeftBlock + 0.1f ? -1 : 1;
+                stuck.unstickSide = sensors.RightBlock > sensors.LeftBlock + 0.1f ? -1 : 1;
         }
 
         // Đang lùi: xoay mạnh về chiều đã chốt để mũi tàu thoát khỏi vật chặn
         if (IsReversing)
-            return unstickSide * Mathf.Max(angle * unstickSide, UnstickTurnAngle);
+            return stuck.unstickSide * Mathf.Max(angle * stuck.unstickSide, UnstickTurnAngle);
 
         // Lùi xong: chạy chếch khỏi hướng mong muốn để vòng qua thay vì đâm lại vào chỗ cũ
-        return Mathf.DeltaAngle(0f, angle + unstickSide * UnstickSwingAngle);
+        return Mathf.DeltaAngle(0f, angle + stuck.unstickSide * UnstickSwingAngle);
     }
 
     private void ResetStuck()
     {
-        wantedSpeed = 0f;
-        stuckTimer = 0f;
-        unstickTimer = 0f;
-        unstickSide = 0;
-        stuckRetryTimer = 0f;
-        allowedSpeed = 0f;
-        waitingTimer = 0f;
+        stuck = default;
         aheadSteer = Vector3.zero;
     }
 
@@ -471,9 +481,9 @@ public class BoatMovementController : MonoBehaviour
             float turnT = Mathf.InverseLerp(SharpTurnStartAngle, SharpTurnFullAngle, Mathf.Abs(angle));
             targetSpeed = maxSpeed * Mathf.Lerp(1f, tuning.sharpTurnSpeedFactor, turnT) * arrivalFactor;
         }
-        wantedSpeed = targetSpeed;
+        stuck.wantedSpeed = targetSpeed;
         targetSpeed = Mathf.Min(targetSpeed, obstacleSpeedLimit);
-        allowedSpeed = targetSpeed;
+        stuck.allowedSpeed = targetSpeed;
 
         float speedDiff = targetSpeed - measuredForward;
         bool speedingUp = speedDiff > 0f;
@@ -513,7 +523,7 @@ public class BoatMovementController : MonoBehaviour
             maxYawRate = Mathf.Max(maxYawRate, rotateSpeed * rotScale * UnstickTurnAuthority);
 
         float targetYawRate = hasInput
-            ? Mathf.Clamp(angle * p.turnResponsiveness + headingRate * p.turnFeedForward, -maxYawRate, maxYawRate)
+            ? Mathf.Clamp(angle * p.turnResponsiveness + heading.rate * p.turnFeedForward, -maxYawRate, maxYawRate)
             : 0f;
         float maxYawChange = p.yawAcceleration * rotScale;
         currentYawRate += Mathf.Clamp((targetYawRate - currentYawRate) * p.yawResponse, -maxYawChange, maxYawChange) * dt;

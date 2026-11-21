@@ -28,12 +28,11 @@ public class BoatTargetController : MonoBehaviour
     private static readonly System.Collections.Generic.List<BoatTargetController> activeBoats =
         new System.Collections.Generic.List<BoatTargetController>();
 
-    // Bật khi tàu đã tới trụ / hết việc: không thấy địch trong searchRadius thì đi săn tàu địch gần nhất trên cả bản đồ.
-    // Không có cái này, hai bên có thể đứng ở trụ của nhau mãi mà không bao giờ thấy nhau -> trận không kết thúc
-    public bool HuntAnywhere { get; set; }
-
     private void OnEnable() => activeBoats.Add(this);
     private void OnDisable() => activeBoats.Remove(this);
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics() => activeBoats.Clear();
 
     public BoatTeam Team => team;
 
@@ -127,11 +126,13 @@ public class BoatTargetController : MonoBehaviour
             }
         }
 
-        if (nearestTarget == null && HuntAnywhere)
+        // Trong vùng phát hiện không có ai nhưng phe địch vẫn còn tàu: đi săn tàu địch gần nhất trên cả bản đồ.
+        // Chỉ khi địch đã hết tàu mới không có mục tiêu -> BoatAIController cho tàu chạy về trụ
+        if (nearestTarget == null)
         {
             foreach (BoatTargetController other in activeBoats)
             {
-                if (other == null || other == this || other.Team == Team)
+                if (other == null || other == this || other.Team == Team || !other.gameObject.activeInHierarchy)
                     continue;
 
                 float distance = Vector3.Distance(transform.position, other.transform.position);

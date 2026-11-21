@@ -25,6 +25,16 @@ public class BoatHealth : MonoBehaviour, IDamageable, IHealthBarTarget
     public bool IsDead => isDead;
     public Vector3 BarWorldPosition => transform.position + barOffset;
 
+    // Các tàu đang bật trong scene: GameController đếm tàu còn sống mà không cần FindObjectsByType (tạo mảng mới mỗi lần)
+    private static readonly System.Collections.Generic.List<BoatHealth> active = new System.Collections.Generic.List<BoatHealth>();
+    public static System.Collections.Generic.IReadOnlyList<BoatHealth> Active => active;
+
+    private void OnEnable() => active.Add(this);
+    private void OnDisable() => active.Remove(this);
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics() => active.Clear();
+
     private void Awake()
     {
         // Quên kéo tham chiếu trong Inspector thì tự lấy, tránh NullReference ở Team / IsAlly

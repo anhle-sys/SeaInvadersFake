@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b3b013983575e9c478b8a518f6cd6775, type: 3}
+  m_Name: PlaneFlightProfile
+  m_EditorClassIdentifier: Assembly-CSharp::FlightProfile
+  flightScaleMultiplier: 2
+  scaleTransitionTime: 0.8
+  flyHeight: 10
+  attackHeight: 6
+  seaLevel: 0
+  climbSpeed: 5
+  acceleration: 6
+  turnGain: 2.5
+  yawAcceleration: 300
+  turnSpeedFactor: 0.8
+  maxPitch: 30
+  maxBank: 35
+  attitudeResponse: 5
+  avoidRadius: 3.5
+  avoidWeight: 1.6
+  avoidVertical: 1.5
+  takeoffRollTime: 0.6
+  takeoffSpeedRatio: 0.45
+  fireConeAngle: 30
+  diveStartMultiplier: 2.5
+  extendTurnRadiusMultiplier: 2
+  repositionTurnBoost: 1.8
+  attackRunSpeedFactor: 0.65
+  lostTargetGraceTime: 1
+  descendDistance: 18
+  approachDistance: 8
+  touchdownDistance: 2
+  landSnapDistance: 0.15

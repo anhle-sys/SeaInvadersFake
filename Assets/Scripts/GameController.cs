@@ -74,7 +74,7 @@ public class GameController : MonoBehaviour
             GameData.StartNewBattle(roundUI != null ? roundUI.RoundCount : 1);
 
         if (roundUI != null) roundUI.Refresh();
-        popupManager.Init();
+        popupManager.BindResultButtons();
         SpawnOwnedBoats();
     }
 
@@ -89,8 +89,10 @@ public class GameController : MonoBehaviour
         roundCheckTimer = roundCheckInterval;
 
         int allies = 0, enemies = 0;
-        foreach (var boat in FindObjectsByType<BoatHealth>(FindObjectsSortMode.None))
+        var boats = BoatHealth.Active;
+        for (int i = 0; i < boats.Count; i++)
         {
+            BoatHealth boat = boats[i];
             if (boat.IsDead) continue;
             if (boat.IsAlly) allies++; else enemies++;
         }
@@ -123,11 +125,8 @@ public class GameController : MonoBehaviour
     public void LoadScene()
     {
         GameData.SaveIfDirty();
-        DOTween.KillAll();
-        UnityEngine.SceneManagement.SceneManager.LoadScene(
-            "Battle",
-            UnityEngine.SceneManagement.LoadSceneMode.Single
-        );
+        // Màn đã tối hẳn mới dọn tween, để popup/nút không bị khựng giữa chừng lúc đang mờ dần
+        SceneFader.LoadScene("Battle", () => DOTween.KillAll());
     }
 
     public void SpawnOwnedBoats()
@@ -200,8 +199,8 @@ public class GameController : MonoBehaviour
         // Popup nâng cấp / mua tàu còn mở thì đóng lại, không để nó treo trên màn hình trong trận
         if (popupManager != null)
         {
-            if (popupManager.UpgratePopup != null && popupManager.UpgratePopup.IsOpen)
-                popupManager.UpgratePopup.Hide();
+            if (popupManager.UpgradePopup != null && popupManager.UpgradePopup.IsOpen)
+                popupManager.UpgradePopup.Hide();
             if (popupManager.PurchasePopup != null && popupManager.PurchasePopup.IsOpen)
                 popupManager.PurchasePopup.Hide();
         }

@@ -38,7 +38,7 @@ public class GoldDisplay : MonoBehaviour, IPointerClickHandler
     {
         GameData.OnGoldChanged += HandleGoldChanged;
         GameData.OnNotEnoughGold += HandleNotEnoughGold;
-        SetImmediate(GameData.Gold);
+        ShowGoldInstantly(GameData.Gold);
     }
 
     private void OnDisable()
@@ -50,32 +50,32 @@ public class GoldDisplay : MonoBehaviour, IPointerClickHandler
         if (goldText != null) goldText.color = baseColor;
     }
 
-    private void SetImmediate(int gold)
+    private void ShowGoldInstantly(int gold)
     {
         countTween?.Kill();
         shownGold = gold;
-        Render(gold);
+        SetGoldText(gold);
     }
 
     private void HandleGoldChanged(int gold)
     {
         if (!isActiveAndEnabled || gold == shownGold)
         {
-            SetImmediate(gold);
+            ShowGoldInstantly(gold);
             return;
         }
 
         bool gained = gold > shownGold;
 
         countTween?.Kill();
-        countTween = DOTween.To(() => shownGold, v => { shownGold = v; Render(v); }, gold, countDuration)
+        countTween = DOTween.To(() => shownGold, v => { shownGold = v; SetGoldText(v); }, gold, countDuration)
             .SetEase(Ease.OutCubic)
             .SetUpdate(true)
             .SetLink(gameObject);
 
         if (gained)
-            Punch();
-        Flash(gained ? gainColor : spendColor);
+            PlayGainPunch();
+        FlashTextColor(gained ? gainColor : spendColor);
     }
 
     private void HandleNotEnoughGold(int required)
@@ -88,10 +88,10 @@ public class GoldDisplay : MonoBehaviour, IPointerClickHandler
         scaleTween = animatedRoot.DOShakeAnchorPos(0.35f, new Vector2(14f, 0f), 20, 0f)
             .SetUpdate(true)
             .SetLink(gameObject);
-        Flash(notEnoughColor);
+        FlashTextColor(notEnoughColor);
     }
 
-    private void Punch()
+    private void PlayGainPunch()
     {
         if (animatedRoot == null) return;
         scaleTween?.Kill(true);
@@ -101,7 +101,7 @@ public class GoldDisplay : MonoBehaviour, IPointerClickHandler
             .SetLink(gameObject);
     }
 
-    private void Flash(Color color)
+    private void FlashTextColor(Color color)
     {
         if (goldText == null) return;
         colorTween?.Kill();
@@ -112,7 +112,7 @@ public class GoldDisplay : MonoBehaviour, IPointerClickHandler
             .SetLink(gameObject);
     }
 
-    private void Render(int value)
+    private void SetGoldText(int value)
     {
         if (goldText != null)
             goldText.text = string.Format(format, value);

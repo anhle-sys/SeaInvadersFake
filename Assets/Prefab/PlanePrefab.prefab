@@ -382,6 +382,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6995699819d2c9c45b8de474c85844ab, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Fly
+  profile: {fileID: 11400000, guid: 687da9cc307763f48b295c684fab8de6, type: 2}
   flightScaleMultiplier: 2
   scaleTransitionTime: 0.8
   flyHeight: 10

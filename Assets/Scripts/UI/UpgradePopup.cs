@@ -1,16 +1,16 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-public class UpgratePopup : MonoBehaviour
+public class UpgradePopup : MonoBehaviour
 {
     [Header("Events")]
     [SerializeField] private BoatDataEventChannel boatClicked; // kéo asset BoatClicked vào
 
     [Header("References")]
-    [SerializeField] private GunnerUpgratePopup gunnerUpgratePopup;
-    [SerializeField] private BangerUpgratePopup bangerUpgratePopup;
-    [SerializeField] private CarrierUpgratePopup carrierUpgratePopup;
-    [SerializeField] private Button back;
+    [SerializeField] private GunnerUpgradePopup gunnerPanel;
+    [SerializeField] private BangerUpgradePopup bangerPanel;
+    [SerializeField] private CarrierUpgradePopup carrierPanel;
+    [SerializeField] private Button backButton;
 
     [Header("Focus & hiệu ứng")]
     [SerializeField] private UpgradeHitFx hitFx;
@@ -35,14 +35,14 @@ public class UpgratePopup : MonoBehaviour
         GameData.OnUpgradeChanged -= HandleUpgradeChanged;
     }
 
-public void Show(BoatSelection selection)
+    public void Show(BoatSelection selection)
     {
         if (selection.Data == null)
             return;
 
         if (string.IsNullOrEmpty(selection.InstanceId))
         {
-            Debug.LogError("UpgratePopup: tàu được chọn chưa có InstanceId, không thể nâng cấp.");
+            Debug.LogError("UpgradePopup: tàu được chọn chưa có InstanceId, không thể nâng cấp.");
             return;
         }
 
@@ -55,14 +55,14 @@ public void Show(BoatSelection selection)
         selectedInstanceId = selection.InstanceId;
         selectedBoat = selection.Boat;
 
-        SetupUI(selection.Data, selection.InstanceId);
-        SetBotPopupActive(false);
+        ShowPanelFor(selection.Data, selection.InstanceId);
+        PopupManager.SetBottomBarVisible(false);
 
-        if (back != null)
+        if (backButton != null)
         {
-            back.gameObject.SetActive(true);
-            back.onClick.RemoveAllListeners();
-            back.onClick.AddListener(Hide);
+            backButton.gameObject.SetActive(true);
+            backButton.onClick.RemoveAllListeners();
+            backButton.onClick.AddListener(Hide);
         }
 
         gc.state = GameState.Upgrade;
@@ -70,27 +70,23 @@ public void Show(BoatSelection selection)
             gc.CameraController.FocusOnBoat(selectedBoat);
     }
 
-private void SetupUI(BoatData boatData, string instanceId)
+    // Bật đúng panel theo loại tàu, tắt 2 panel còn lại
+    private void ShowPanelFor(BoatData boatData, string instanceId)
     {
+        gunnerPanel.gameObject.SetActive(boatData.boatType == BoatType.Gunner);
+        bangerPanel.gameObject.SetActive(boatData.boatType == BoatType.Banger);
+        carrierPanel.gameObject.SetActive(boatData.boatType == BoatType.Carrier);
+
         switch (boatData.boatType)
         {
             case BoatType.Gunner:
-                gunnerUpgratePopup.gameObject.SetActive(true);
-                bangerUpgratePopup.gameObject.SetActive(false);
-                carrierUpgratePopup.gameObject.SetActive(false);
-                gunnerUpgratePopup.SetupUI(boatData, instanceId);
+                gunnerPanel.Refresh(boatData, instanceId);
                 break;
             case BoatType.Banger:
-                gunnerUpgratePopup.gameObject.SetActive(false);
-                bangerUpgratePopup.gameObject.SetActive(true);
-                carrierUpgratePopup.gameObject.SetActive(false);
-                bangerUpgratePopup.SetupUI(boatData, instanceId);
+                bangerPanel.Refresh(boatData, instanceId);
                 break;
             case BoatType.Carrier:
-                gunnerUpgratePopup.gameObject.SetActive(false);
-                bangerUpgratePopup.gameObject.SetActive(false);
-                carrierUpgratePopup.gameObject.SetActive(true);
-                carrierUpgratePopup.SetupUI(boatData, instanceId);
+                carrierPanel.Refresh(boatData, instanceId);
                 break;
             default:
                 Debug.LogError($"Unsupported boat type: {boatData.boatType}");
@@ -105,12 +101,12 @@ private void SetupUI(BoatData boatData, string instanceId)
         selectedData = null;
         selectedInstanceId = null;
 
-        gunnerUpgratePopup.gameObject.SetActive(false);
-        bangerUpgratePopup.gameObject.SetActive(false);
-        carrierUpgratePopup.gameObject.SetActive(false);
-        if (back != null)
-            back.gameObject.SetActive(false);
-        SetBotPopupActive(true);
+        gunnerPanel.gameObject.SetActive(false);
+        bangerPanel.gameObject.SetActive(false);
+        carrierPanel.gameObject.SetActive(false);
+        if (backButton != null)
+            backButton.gameObject.SetActive(false);
+        PopupManager.SetBottomBarVisible(true);
 
         // Trả camera về góc nhìn chuẩn bị
         GameController gc = GameController.Instance;
@@ -124,19 +120,12 @@ private void SetupUI(BoatData boatData, string instanceId)
 
     public void Back() => Hide();
 
-private void HandleUpgradeChanged(string instanceId, StatType stat, int level)
+    private void HandleUpgradeChanged(string instanceId, StatType stat, int level)
     {
         if (selectedData == null || selectedInstanceId != instanceId || selectedBoat == null)
             return;
 
         if (hitFx != null)
             hitFx.Play(selectedBoat);
-    }
-
-    private static void SetBotPopupActive(bool active)
-    {
-        GameController gc = GameController.Instance;
-        if (gc != null && gc.PopupManager != null && gc.PopupManager.botPopup != null)
-            gc.PopupManager.botPopup.SetActive(active);
     }
 }

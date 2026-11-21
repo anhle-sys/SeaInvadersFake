@@ -3,24 +3,24 @@ using UnityEngine.UI;
 
 public class LosePopup : MonoBehaviour
 {
-    [SerializeField] private Button replayBtn;
-    public void Init()
+    [SerializeField] private Button retryButton;
+
+    public void BindButtons()
     {
-        replayBtn.onClick.RemoveAllListeners();
-        replayBtn.onClick.AddListener(() =>
-        {
-            GameController.Instance.LoadScene();
-            Hide();
-        });
+        retryButton.onClick.RemoveAllListeners();
+        // Không Hide: popup giữ nguyên trong lúc màn tối dần, scene mới sẽ tự dựng lại
+        retryButton.onClick.AddListener(() => GameController.Instance.LoadScene());
     }
+
     public void Show()
     {
         gameObject.SetActive(true);
-        replayBtn.gameObject.SetActive(true);
+        retryButton.gameObject.SetActive(true);
     }
+
     public void Hide()
     {
         gameObject.SetActive(false);
-        replayBtn.gameObject.SetActive(false);
+        retryButton.gameObject.SetActive(false);
     }
 }

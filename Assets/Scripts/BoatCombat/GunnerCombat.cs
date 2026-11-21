@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Pool;
 
 public class GunnerCombat : BoatCombatBase, IBoatMovementModifier
 {
@@ -10,6 +11,8 @@ public class GunnerCombat : BoatCombatBase, IBoatMovementModifier
     private GunnerData data;
     private BoatStats stats;
     private float attackTimer;
+    private WaitForSeconds volleyWait;
+    private float volleyWaitDelay;
 
     // Orbit state
     private float orbitDirection;   // +1: địch ở mạn phải, -1: mạn trái, 0: chưa chốt
@@ -409,27 +412,48 @@ public class GunnerCombat : BoatCombatBase, IBoatMovementModifier
             return;
         }
 
-        StartCoroutine(FireVolley(enemy, new List<Transform>(aimController.ReadyCannons)));
+        // Chụp lại danh sách nòng lúc bắn (ReadyCannons đổi theo từng frame). Lấy list từ pool, trả lại khi bắn xong
+        List<Transform> cannons = ListPool<Transform>.Get();
+        cannons.AddRange(aimController.ReadyCannons);
+        StartCoroutine(FireVolley(enemy, cannons));
     }
 
     private IEnumerator FireVolley(Transform enemy, List<Transform> cannons)
     {
-        foreach (Transform cannon in cannons)
+        Rigidbody enemyRb = enemy != null ? enemy.GetComponent<Rigidbody>() : null;
+        try
         {
-            if (enemy == null || cannon == null)
-                yield break;
-
-            GameObject bullet = SimplePool2.Spawn(data.bulletPrefab, cannon.position, cannon.rotation);
-            Bullet b = bullet.GetComponent<Bullet>();
-            if (b != null)
+            foreach (Transform cannon in cannons)
             {
-                Rigidbody enemyRb = enemy.GetComponent<Rigidbody>();
-                Vector3 enemyVelocity = enemyRb != null ? enemyRb.linearVelocity : Vector3.zero;
-                b.Init(targetController.Team, enemy.position, enemyVelocity, stats != null ? stats.RollDamage() : 0f);
-            }
+                if (enemy == null || cannon == null)
+                    yield break;
 
-            if (data.volleyDelay > 0f)
-                yield return new WaitForSeconds(data.volleyDelay);
+                GameObject bullet = SimplePool2.Spawn(data.bulletPrefab, cannon.position, cannon.rotation);
+                Bullet b = bullet.GetComponent<Bullet>();
+                if (b != null)
+                {
+                    Vector3 enemyVelocity = enemyRb != null ? enemyRb.linearVelocity : Vector3.zero;
+                    b.Init(targetController.Team, enemy.position, enemyVelocity, stats != null ? stats.RollDamage() : 0f);
+                }
+
+                if (data.volleyDelay > 0f)
+                    yield return VolleyWait();
+            }
         }
+        finally
+        {
+            ListPool<Transform>.Release(cannons);
+        }
+    }
+
+    // Dùng lại 1 WaitForSeconds thay vì tạo mới mỗi phát; chỉ tạo lại khi volleyDelay đổi
+    private WaitForSeconds VolleyWait()
+    {
+        if (volleyWait == null || !Mathf.Approximately(volleyWaitDelay, data.volleyDelay))
+        {
+            volleyWaitDelay = data.volleyDelay;
+            volleyWait = new WaitForSeconds(volleyWaitDelay);
+        }
+        return volleyWait;
     }
 }

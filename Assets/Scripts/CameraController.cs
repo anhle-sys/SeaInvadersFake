@@ -8,7 +8,7 @@ public class CameraController : MonoBehaviour
 
     public Transform idleCamera;
     public Transform battleCamera;
-    public Transform upgrateCamera;
+    public Transform upgradeCamera;
 
     [SerializeField] private float moveDuration = 0.8f;
 
@@ -120,7 +120,7 @@ public class CameraController : MonoBehaviour
                 break;
 
             case GameState.Upgrade:
-                SetCameraPosition(upgrateCamera);
+                SetCameraPosition(upgradeCamera);
                 SetCameraFOV(upgradeFOV);
                 break;
 

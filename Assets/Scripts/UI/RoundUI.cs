@@ -12,9 +12,9 @@ public class RoundUI : MonoBehaviour
     [SerializeField] private Color upcomingColor = new(0.55f, 0.55f, 0.55f, 0.8f);
     [SerializeField] private float currentScale = 1.15f;
 
-    public int RoundCount => Rounds.Length;
+    public int RoundCount => RoundCells.Length;
 
-    private Image[] Rounds
+    private Image[] RoundCells
     {
         get
         {
@@ -30,7 +30,7 @@ public class RoundUI : MonoBehaviour
 
     public void Refresh()
     {
-        Image[] cells = Rounds;
+        Image[] cells = RoundCells;
         for (int i = 0; i < cells.Length; i++)
         {
             Image cell = cells[i];

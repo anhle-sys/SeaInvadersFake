@@ -49,10 +49,11 @@ public class StatUpgrade
 
     public string FormatLevel(int level) => $"{GetTier(level)}.{GetStep(level)}";
 
+    // Thanh đầy đúng lúc lên bậc mới -> lúc đó text sang Level kế tiếp và thanh về 0
     public float GetTierFill(int level)
     {
         if (level >= maxLevel) return 1f;
-        return (float)GetStep(level) / Mathf.Max(1, stepsPerTier);
+        return (float)GetStep(level) / LevelsPerTier;
     }
 }
 
